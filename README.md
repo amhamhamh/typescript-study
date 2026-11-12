@@ -31,4 +31,6 @@ npm run build          # dist/ 생성
 
 ## 배포
 
+배포 주소: https://amhamhamh.github.io/typescript-study/
+
 `main`에 푸시하면 GitHub Actions(`.github/workflows/deploy.yml`)가 실습 검증 → 타입 검사 → 빌드 후 GitHub Pages에 배포합니다.
