@@ -10,7 +10,7 @@ import { HomePage } from './pages/HomePage';
 import { LessonPage } from './pages/LessonPage';
 import { CheatsheetPage } from './pages/CheatsheetPage';
 
-const REPO_URL = 'https://github.com/amhamhamh/ts-for-react-devs';
+const REPO_URL = 'https://github.com/amhamhamh/typescript-study';
 
 function systemTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
