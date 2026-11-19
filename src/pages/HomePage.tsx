@@ -58,7 +58,7 @@ export function HomePage() {
           고치면 바로 보이는<br />TypeScript 실습
         </h1>
         <p className="hero__lead">
-          읽기만 하는 강의가 아닙니다. 왼쪽 에디터에서 코드를 고치면 오른쪽 <strong>미리보기와 콘솔</strong>이 즉시 바뀌고,
+          읽기만 하는 강의가 아닙니다. 에디터에서 코드를 고치면 <strong>미리보기와 콘솔</strong>이 즉시 바뀌고,
           타입 검사가 어느 줄이 왜 위험한지 알려 줍니다. PropTypes, <code>useState</code>, 리듀서, <code>navigation.navigate</code>처럼
           이미 손에 익은 코드에서 출발합니다.
         </p>

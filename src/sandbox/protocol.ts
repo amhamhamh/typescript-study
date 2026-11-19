@@ -8,6 +8,8 @@ export type LogLevel = 'log' | 'info' | 'warn' | 'error';
 /** iframe → 부모 */
 export type FromSandbox =
   | { type: 'ready' }
+  /** 실행이 오래 걸려도(긴 await 등) 스크립트가 멈춘 게 아님을 알리는 신호 */
+  | { type: 'alive' }
   | { type: 'log'; level: LogLevel; text: string; uncaught?: boolean }
   | { type: 'done'; rendered: boolean }
   | { type: 'dom'; text: string };
@@ -20,3 +22,6 @@ export interface RunRequest {
 }
 
 export const CHANNEL = '__tsl';
+
+/** 반복문 본문 맨 앞에 끼워 넣는 보호 함수의 이름. compile.ts가 호출을 넣고, runtime.ts가 함수를 넘겨줍니다. */
+export const LOOP_GUARD = '__tslLoop';

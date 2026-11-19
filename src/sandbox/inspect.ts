@@ -43,7 +43,24 @@ function format(value: unknown, depth: number, indent: string, seen: Set<object>
   }
   if (value === null) return 'null';
 
-  const object = value as object;
+  try {
+    return formatObject(value as object, depth, indent, seen);
+  } catch {
+    // 다른 출처의 창(window.parent)처럼 속성을 읽는 것만으로 예외가 나는 값이 있습니다.
+    return '[읽을 수 없는 값]';
+  }
+}
+
+/** React 내부 구현용 속성. 찍어 봐야 수천 줄의 잡음이라 건너뜁니다. */
+const INTERNAL_KEY = /^(_react|__react|_targetInst$|_owner$|_store$|_debug)/;
+const MAX_KEYS = 60;
+
+function isWindow(object: object): boolean {
+  return object === globalThis || Object.prototype.toString.call(object) === '[object Window]';
+}
+
+function formatObject(object: object, depth: number, indent: string, seen: Set<object>): string {
+  if (isWindow(object)) return '[Window]';
   if (object instanceof Error) return `${object.name}: ${object.message}`;
   if (object instanceof Date) return Number.isNaN(object.getTime()) ? 'Invalid Date' : object.toISOString();
   if (object instanceof RegExp) return object.toString();
@@ -55,6 +72,13 @@ function format(value: unknown, depth: number, indent: string, seen: Set<object>
     const type = (object as { type?: unknown }).type;
     const name = typeof type === 'string' ? type : typeof type === 'function' ? type.name || 'Component' : 'Fragment';
     return `<${name} />`;
+  }
+  // 이벤트 객체(브라우저 Event, React의 합성 이벤트)는 핵심만 보여 줍니다.
+  const isDomEvent = typeof Event !== 'undefined' && object instanceof Event;
+  if (isDomEvent || ('nativeEvent' in object && 'currentTarget' in object && 'type' in object)) {
+    const event = object as { type?: unknown; target?: unknown };
+    const label = isDomEvent ? nameOf(object) : 'SyntheticEvent';
+    return `${label} { type: ${format(event.type, depth + 1, indent, seen)}, target: ${format(event.target, depth + 1, indent, seen)} }`;
   }
 
   if (seen.has(object)) return '[Circular]';
@@ -77,10 +101,18 @@ function format(value: unknown, depth: number, indent: string, seen: Set<object>
       const items = [...object.values()].map((item) => format(item, depth + 1, `${indent}  `, seen));
       return `Set(${object.size}) ${wrap('{', items, '}', indent)}`;
     }
-    const items = Object.entries(object).map(([key, item]) => {
+    const keys = Object.keys(object).filter((key) => !INTERNAL_KEY.test(key));
+    const items = keys.slice(0, MAX_KEYS).map((key) => {
       const label = /^[A-Za-z_$][\w$]*$/.test(key) ? key : `'${key}'`;
-      return `${label}: ${format(item, depth + 1, `${indent}  `, seen)}`;
+      let item: string;
+      try {
+        item = format((object as Record<string, unknown>)[key], depth + 1, `${indent}  `, seen);
+      } catch {
+        item = '[읽을 수 없는 값]';
+      }
+      return `${label}: ${item}`;
     });
+    if (keys.length > MAX_KEYS) items.push(`… ${keys.length - MAX_KEYS}개 더`);
     const body = wrap('{', items, '}', indent);
     return isPlainObject(object) ? body : `${nameOf(object)} ${body}`;
   } finally {
@@ -88,7 +120,52 @@ function format(value: unknown, depth: number, indent: string, seen: Set<object>
   }
 }
 
+const MAX_OUTPUT = 8000;
+
+function show(arg: unknown): string {
+  if (typeof arg === 'string') return arg;
+  try {
+    return format(arg, 0, '', new Set());
+  } catch {
+    return '[출력할 수 없는 값]';
+  }
+}
+
+/**
+ * console.log('%s님, %d개', name, count) 같은 printf 형식을 풀어 줍니다.
+ * React의 개발용 경고가 이 형식을 쓰기 때문에, 처리하지 않으면 "%s"가 그대로 보입니다.
+ */
+function substitute(template: string, rest: unknown[]): string {
+  return template.replace(/%([sdifoOc%])/g, (match, kind: string) => {
+    if (kind === '%') return '%';
+    if (rest.length === 0) return match;
+    const value = rest.shift();
+    switch (kind) {
+      case 'c':
+        return ''; // 스타일 지정은 버립니다
+      case 'd':
+      case 'i':
+        return typeof value === 'number' ? String(Math.trunc(value)) : String(parseInt(String(value), 10));
+      case 'f':
+        return String(Number(value));
+      case 's':
+        return typeof value === 'string' ? value : show(value);
+      default:
+        return show(value);
+    }
+  });
+}
+
 /** console.log(a, b, c) 한 번의 호출을 한 줄(또는 여러 줄)의 문자열로 만듭니다. */
 export function formatArgs(args: unknown[]): string {
-  return args.map((arg) => (typeof arg === 'string' ? arg : format(arg, 0, '', new Set()))).join(' ');
+  const rest = [...args];
+  const parts: string[] = [];
+  const first = rest[0];
+  if (typeof first === 'string' && rest.length > 1 && first.includes('%')) {
+    rest.shift();
+    parts.push(substitute(first, rest));
+  }
+  for (const arg of rest) parts.push(show(arg));
+  const text = parts.join(' ');
+  return text.length > MAX_OUTPUT ? `${text.slice(0, MAX_OUTPUT)}\n… (출력이 길어 ${text.length - MAX_OUTPUT}자를 생략했습니다)` : text;
 }

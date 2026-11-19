@@ -33,6 +33,13 @@ export interface Goal {
   consoleIncludes?: string[];
   /** 미리보기 화면의 글자에 이 문자열들이 모두 들어 있어야 함 */
   previewIncludes?: string[];
+  /**
+   * 코드에 이 표현들이 모두 들어 있어야 함. 화면이나 콘솔로는 구분되지 않는 "어떻게 고쳤는가"를 확인합니다.
+   * 주석은 빼고, 띄어쓰기 차이는 무시하고 비교합니다. 예: 'Record<Status, string>', 'as const'
+   */
+  codeIncludes?: string[];
+  /** 코드에 이 표현들이 남아 있으면 안 됨. 예: 'as User', ': any' */
+  codeExcludes?: string[];
 }
 
 export interface Mission {

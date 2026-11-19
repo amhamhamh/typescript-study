@@ -37,7 +37,12 @@ let nativeTypes: Promise<void> | null = null;
 
 /** React Native 타입은 용량이 커서, RN 예제가 처음 열릴 때 불러옵니다. */
 export function ensureNativeTypes(): Promise<void> {
-  nativeTypes ??= import('../generated/types-native.json').then((module) => addLibs(module.default));
+  nativeTypes ??= import('../generated/types-native.json')
+    .then((module) => addLibs(module.default))
+    .catch((error: unknown) => {
+      nativeTypes = null;
+      throw error;
+    });
   return nativeTypes;
 }
 
@@ -48,7 +53,8 @@ monaco.editor.defineTheme('tsl-light', {
   colors: {
     'editor.background': '#fbfaf7',
     'editor.lineHighlightBackground': '#f1efe8',
-    'editorLineNumber.foreground': '#b3ae9f',
+    'editorLineNumber.foreground': '#7d796c',
+    'editorLineNumber.activeForeground': '#1c1b18',
     'editorGutter.background': '#fbfaf7',
   },
 });
@@ -59,7 +65,8 @@ monaco.editor.defineTheme('tsl-dark', {
   colors: {
     'editor.background': '#12161d',
     'editor.lineHighlightBackground': '#1a202a',
-    'editorLineNumber.foreground': '#4a5568',
+    'editorLineNumber.foreground': '#7a8496',
+    'editorLineNumber.activeForeground': '#e9e6de',
     'editorGutter.background': '#12161d',
   },
 });

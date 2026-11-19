@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { findLesson, lessons } from './content';
 import { href, useRoute } from './lib/router';
 import { selectDoneCount, selectTheme, useAppDispatch, useAppSelector } from './store';
 import { themeChanged } from './store/progressSlice';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Sidebar } from './components/Sidebar';
 import { CloseIcon, MenuIcon, MoonIcon, SunIcon } from './components/Icons';
 import { HomePage } from './pages/HomePage';
@@ -17,6 +18,7 @@ export function App() {
   const theme = useAppSelector(selectTheme);
   const doneCount = useAppSelector(selectDoneCount);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -29,6 +31,24 @@ export function App() {
     setMenuOpen(false);
   }, [routeKey]);
 
+  // 목차 서랍이 열려 있는 동안: 첫 링크로 포커스를 옮기고, Esc로 닫고, 닫히면 메뉴 버튼으로 포커스를 돌려줍니다.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const button = menuButtonRef.current;
+    // 서랍은 visibility 전환으로 나타나므로, 화면에 보인 다음에야 포커스를 받을 수 있습니다.
+    const focusTimer = setTimeout(() => document.querySelector<HTMLElement>('#site-nav a')?.focus(), 80);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      clearTimeout(focusTimer);
+      window.removeEventListener('keydown', onKeyDown);
+      // 링크를 눌러 다른 화면으로 간 경우가 아니라면(포커스가 아직 서랍 안에 있으면) 버튼으로 돌려놓습니다.
+      if (document.activeElement?.closest('#site-nav')) button?.focus();
+    };
+  }, [menuOpen]);
+
   const lesson = route.name === 'lesson' ? findLesson(route.lessonId) : undefined;
   // 레슨 화면은 에디터에 자리를 내주기 위해 목차를 접어 둡니다. (메뉴 버튼으로 열기)
   const focus = route.name === 'lesson' && lesson !== undefined;
@@ -38,7 +58,9 @@ export function App() {
       <header className="topbar">
         <button
           className="icon-btn topbar__menu"
+          ref={menuButtonRef}
           onClick={() => setMenuOpen((open) => !open)}
+          aria-controls="site-nav"
           aria-label={menuOpen ? '목차 닫기' : '목차 열기'}
           aria-expanded={menuOpen}
         >
@@ -64,7 +86,9 @@ export function App() {
       <div className={`shell${menuOpen ? ' is-menu-open' : ''}`}>
         <Sidebar route={route} onNavigate={() => setMenuOpen(false)} />
         {menuOpen && <button className="scrim" aria-label="목차 닫기" onClick={() => setMenuOpen(false)} />}
-        <main className="main">
+        {/* 서랍이 열려 있으면 그 아래 내용은 키보드·스크린리더로 닿지 않게 합니다. */}
+        <main className="main" inert={menuOpen}>
+          <ErrorBoundary key={routeKey}>
           {route.name === 'home' && <HomePage />}
           {route.name === 'cheatsheet' && <CheatsheetPage />}
           {route.name === 'lesson' &&
@@ -76,6 +100,7 @@ export function App() {
                 <p><a href={href({ name: 'home' })}>학습 지도로 돌아가기</a></p>
               </div>
             ))}
+          </ErrorBoundary>
         </main>
       </div>
     </div>

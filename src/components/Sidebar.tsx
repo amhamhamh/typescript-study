@@ -13,7 +13,7 @@ export function Sidebar({ route, onNavigate }: SidebarProps) {
   const currentId = route.name === 'lesson' ? route.lessonId : null;
 
   return (
-    <nav className="sidebar" aria-label="레슨 목록">
+    <nav className="sidebar" id="site-nav" aria-label="레슨 목록">
       <a className={`side-link${route.name === 'home' ? ' is-current' : ''}`} href={href({ name: 'home' })} onClick={onNavigate}>
         학습 지도
       </a>

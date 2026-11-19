@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { RefObject } from 'react';
 import type { Runner } from '../content/types';
 import type { Diagnostic } from '../editor/monaco';
@@ -13,6 +14,7 @@ import { selectTheme, useAppSelector } from '../store';
 /** 부모(레슨 화면)가 에디터를 조작할 때 쓰는 손잡이 */
 export interface WorkbenchApi {
   getValue(): string;
+  /** 코드를 통째로 바꿉니다. 에디터의 실행 취소(Ctrl/Cmd+Z)로 되돌릴 수 있습니다. */
   setValue(code: string): void;
   diagnose(): Promise<Diagnostic[]>;
 }
@@ -49,6 +51,15 @@ const MAX_LOGS = 200;
 const MAX_AUTO_HEIGHT = 520;
 const RUN_DELAY = 450;
 
+/** 세로로 스크롤되는 가장 가까운 조상을 찾습니다. 없으면 페이지 전체가 스크롤됩니다. */
+function scrollParent(element: HTMLElement): HTMLElement | Window {
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    const overflow = getComputedStyle(node).overflowY;
+    if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight + 1) return node;
+  }
+  return window;
+}
+
 /** 단계를 오가도 고치던 코드가 사라지지 않도록 기억해 둡니다. (새로고침하면 초기화) */
 const drafts = new Map<string, string>();
 
@@ -56,12 +67,14 @@ const fileName: Record<Runner, string> = { console: 'example.ts', react: 'App.ts
 const previewLabel: Record<Runner, string> = { console: '', react: '미리보기', native: '미리보기 · 휴대폰' };
 
 export function Workbench({ id, code, runner, fill = false, apiRef, onReport, onEdit }: WorkbenchProps) {
-  const engine = useEngine();
+  const { engine, failed, retry } = useEngine();
+  const tabsId = useId();
   const theme = useAppSelector(selectTheme);
 
   const editorHostRef = useRef<HTMLDivElement>(null);
   const frameHostRef = useRef<HTMLDivElement>(null);
   const consoleRef = useRef<HTMLDivElement>(null);
+  const outputRef = useRef<HTMLElement>(null);
 
   // 최신 값을 이펙트 밖에서 읽기 위한 ref들
   const themeRef = useRef(theme);
@@ -115,13 +128,42 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
         stickyScroll: { enabled: false },
         fixedOverflowWidgets: true,
         wordWrap: 'on',
-        ariaLabel: '코드 에디터',
+        ariaLabel: '코드 에디터. Esc 키를 누르면 에디터에서 나갑니다.',
       });
+
+      // 에디터 안에서는 Tab이 들여쓰기라서 키보드만으로는 빠져나올 수 없습니다. Esc로 결과 영역으로 나가게 합니다.
+      // (자동완성 목록 등이 떠 있을 때의 Esc는 원래대로 그 창을 닫습니다)
+      editor.addCommand(
+        monaco.KeyCode.Escape,
+        () => outputRef.current?.focus(),
+        '!suggestWidgetVisible && !parameterHintsVisible && !findWidgetVisible && !renameInputVisible && !inSnippetMode && !editorHasMultipleSelections',
+      );
+
+      // 터치 화면에서 에디터 위를 쓸어내리면 Monaco가 제스처를 가져가서 페이지가 움직이지 않습니다.
+      // 에디터가 더 스크롤할 수 없는 방향이면 그만큼 바깥(페이지)을 대신 스크롤합니다.
+      let touchY: number | null = null;
+      const onTouchStart = (event: TouchEvent) => {
+        touchY = event.touches.length === 1 ? (event.touches[0]?.clientY ?? null) : null;
+      };
+      const onTouchMove = (event: TouchEvent) => {
+        const y = event.touches[0]?.clientY;
+        if (touchY === null || y === undefined || event.touches.length !== 1) return;
+        const delta = touchY - y;
+        touchY = y;
+        const top = editor.getScrollTop();
+        const max = editor.getScrollHeight() - editor.getLayoutInfo().height;
+        const editorCanScroll = delta > 0 ? top < max - 1 : top > 0;
+        if (!editorCanScroll) scrollParent(editorHost).scrollBy(0, delta);
+      };
+      editorHost.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+      editorHost.addEventListener('touchmove', onTouchMove, { capture: true, passive: true });
 
       let sizeSub: { dispose(): void } | null = null;
       if (!fill) {
         const fit = () => {
-          editorHost.style.height = `${Math.min(Math.max(editor.getContentHeight(), 120), MAX_AUTO_HEIGHT)}px`;
+          // 작은 화면에서 에디터가 화면을 다 차지하지 않도록 높이를 화면의 절반으로 제한합니다.
+          const limit = Math.min(MAX_AUTO_HEIGHT, Math.max(200, window.innerHeight * 0.5));
+          editorHost.style.height = `${Math.min(Math.max(editor.getContentHeight(), 120), limit)}px`;
           editor.layout();
         };
         sizeSub = editor.onDidContentSizeChange(fit);
@@ -143,6 +185,7 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
           typeErrors: settled ? typeErrors : null,
           console: settled ? consoleText : '',
           preview: settled ? previewText : '',
+          code: model.getValue(),
           edited: model.getValue().trim() !== code.trim(),
         });
       };
@@ -182,7 +225,15 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
       const host = new SandboxHost(frameHost, engine.runtime, onEvent);
 
       const check = async (forVersion: number) => {
-        const [found, js] = await Promise.all([getDiagnostics(model), getCompiledJs(model)]);
+        let found: Diagnostic[];
+        let js: string;
+        try {
+          [found, js] = await Promise.all([getDiagnostics(model), getCompiledJs(model)]);
+        } catch (error) {
+          // 검사 도중 화면을 떠나면 모델이 이미 지워져 있습니다. 그 경우는 조용히 끝냅니다.
+          if (alive && forVersion === version) console.error('타입 검사에 실패했습니다', error);
+          return;
+        }
         if (!alive || forVersion !== version) return;
         typeErrors = found.length;
         checkedVersion = forVersion;
@@ -220,7 +271,13 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
       };
       const api: WorkbenchApi = {
         getValue: () => model.getValue(),
-        setValue: (next) => model.setValue(next),
+        setValue: (next) => {
+          // model.setValue는 실행 취소 기록을 지웁니다. 편집으로 넣어야 Ctrl/Cmd+Z로 내 코드를 되찾을 수 있습니다.
+          editor.pushUndoStop();
+          editor.executeEdits('replace-all', [{ range: model.getFullModelRange(), text: next }]);
+          editor.pushUndoStop();
+          editor.setScrollTop(0);
+        },
         diagnose: () => getDiagnostics(model),
       };
       innerApiRef.current = api;
@@ -237,6 +294,8 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
         innerApiRef.current = null;
         if (apiRef) apiRef.current = null;
         host.dispose();
+        editorHost.removeEventListener('touchstart', onTouchStart, { capture: true });
+        editorHost.removeEventListener('touchmove', onTouchMove, { capture: true });
         sizeSub?.dispose();
         changeSub.dispose();
         editor.dispose();
@@ -246,9 +305,12 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
 
     // React Native 예제는 RN 타입 선언을 먼저 불러온 뒤에 에디터를 엽니다.
     if (runner === 'native') {
-      void ensureNativeTypes().then(() => {
-        if (alive) start();
-      });
+      // 타입 선언을 못 받아와도 에디터와 미리보기는 쓸 수 있게 엽니다. (타입 검사만 부정확해집니다)
+      void ensureNativeTypes()
+        .catch(() => {})
+        .then(() => {
+          if (alive) start();
+        });
     } else {
       start();
     }
@@ -265,7 +327,8 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
   useEffect(() => {
     if (!engine || !ready) return;
     engine.editor.monaco.editor.setTheme(theme === 'dark' ? 'tsl-dark' : 'tsl-light');
-    rerunRef.current();
+    // 테마에 따라 화면이 달라지는 건 웹 미리보기뿐입니다. 나머지는 다시 실행하면 상태만 초기화됩니다.
+    if (runner === 'react') rerunRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme]);
 
@@ -280,6 +343,21 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
     drafts.delete(id);
   }, [code, id]);
 
+  // 탭: 왼쪽/오른쪽 화살표로 오갑니다. (WAI-ARIA 탭 패턴)
+  const onTabKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const next: LowerTab = tab === 'console' ? 'js' : 'console';
+    setTab(next);
+    document.getElementById(`${tabsId}-tab-${next}`)?.focus();
+  };
+
+  const liveStatus = (
+    <span className={`wb__live${running ? ' is-running' : ''}`} role="status">
+      {running ? '실행 중' : '반영됨'}
+    </span>
+  );
+
   const errorCount = diagnostics?.length ?? 0;
   const logCount = logs.reduce((sum, entry) => sum + entry.count, 0);
   const hasPreview = runner !== 'console';
@@ -290,6 +368,7 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
         <header className="wb__bar">
           <span className="wb__file">{fileName[runner]}</span>
           <span className="wb__bar-right">
+            <span className="wb__hint">Esc로 에디터 나가기</span>
             {edited && (
               <button className="wb__mini" onClick={reset} title="처음 코드로 되돌립니다">
                 처음으로
@@ -303,17 +382,25 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
               <code dangerouslySetInnerHTML={{ __html: highlight(code, hasPreview ? 'tsx' : 'ts') }} />
             </pre>
           )}
+          {!ready && failed && (
+            <div className="wb__failed" role="alert">
+              <p>에디터를 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.</p>
+              <button className="btn btn--small" onClick={retry}>
+                다시 시도
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
-      <section className="wb__output" aria-label="실행 결과">
+      <section className="wb__output" aria-label="실행 결과" ref={outputRef} tabIndex={-1}>
         {/* 콘솔 전용 예제에서도 코드를 실행할 iframe은 필요하므로, 영역만 숨깁니다. */}
         <div className={`wb__pane wb__pane--preview${hasPreview ? '' : ' is-offscreen'}`}>
           {hasPreview && (
             <header className="wb__bar">
               <span className="wb__label">{previewLabel[runner]}</span>
               <span className="wb__bar-right">
-                <span className={`wb__live${running ? ' is-running' : ''}`}>{running ? '실행 중' : '반영됨'}</span>
+                {liveStatus}
                 <button className="wb__mini" onClick={() => rerunRef.current()} title="코드를 다시 실행합니다 (상태 초기화)">
                   다시 실행
                 </button>
@@ -330,61 +417,83 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
 
         <div className="wb__lower">
         <div className="wb__pane wb__pane--console">
-          <header className="wb__bar wb__bar--tabs" role="tablist">
-            <button role="tab" aria-selected={tab === 'console'} className="wb__tab" onClick={() => setTab('console')}>
-              콘솔
-              {logCount > 0 && <span className="wb__count">{logCount}</span>}
-            </button>
-            <button role="tab" aria-selected={tab === 'js'} className="wb__tab" onClick={() => setTab('js')}>
-              변환된 JS
-            </button>
+          <header className="wb__bar wb__bar--tabs">
+            <div className="wb__tabs" role="tablist" aria-label="출력 보기" onKeyDown={onTabKey}>
+              <button
+                role="tab"
+                id={`${tabsId}-tab-console`}
+                aria-controls={`${tabsId}-panel`}
+                aria-selected={tab === 'console'}
+                tabIndex={tab === 'console' ? 0 : -1}
+                className="wb__tab"
+                onClick={() => setTab('console')}
+              >
+                콘솔
+                {logCount > 0 && <span className="wb__count">{logCount}</span>}
+              </button>
+              <button
+                role="tab"
+                id={`${tabsId}-tab-js`}
+                aria-controls={`${tabsId}-panel`}
+                aria-selected={tab === 'js'}
+                tabIndex={tab === 'js' ? 0 : -1}
+                className="wb__tab"
+                onClick={() => setTab('js')}
+              >
+                변환된 JS
+              </button>
+            </div>
             {!hasPreview && (
               <span className="wb__bar-right">
-                <span className={`wb__live${running ? ' is-running' : ''}`}>{running ? '실행 중' : '반영됨'}</span>
+                {liveStatus}
                 <button className="wb__mini" onClick={() => rerunRef.current()} title="코드를 다시 실행합니다">
                   다시 실행
                 </button>
               </span>
             )}
           </header>
-          {tab === 'console' ? (
-            <div className="wb__console" ref={consoleRef} role="log" aria-label="콘솔 출력">
-              {logs.length === 0 ? (
-                <p className="wb__empty">
-                  {running ? '실행 중…' : <>출력이 없습니다. <code>console.log(값)</code>으로 값을 찍어 보세요.</>}
-                </p>
-              ) : (
-                logs.map((entry, index) => (
-                  <div key={index} className={`log log--${entry.level}`}>
-                    <span className="log__mark" aria-hidden="true">
-                      {entry.level === 'error' ? '✕' : entry.level === 'warn' ? '!' : '›'}
-                    </span>
-                    <pre className="log__text">{entry.text}</pre>
-                    {entry.count > 1 && <span className="log__count">{entry.count}</span>}
-                  </div>
-                ))
-              )}
-            </div>
-          ) : (
-            <div className="wb__console">
-              <p className="wb__empty">타입 표기는 빌드할 때 전부 지워집니다. 실제로 실행되는 건 이 코드입니다.</p>
-              <pre className="wb__js">
-                <code dangerouslySetInnerHTML={{ __html: highlight(compiledJs || '// (비어 있음)', 'js') }} />
-              </pre>
-            </div>
-          )}
+          <div className="wb__panel" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-tab-${tab}`}>
+            {tab === 'console' ? (
+              <div className="wb__console" ref={consoleRef} role="log" aria-label="콘솔 출력" tabIndex={0}>
+                {logs.length === 0 ? (
+                  <p className="wb__empty">
+                    {running ? '실행 중…' : <>출력이 없습니다. <code>console.log(값)</code>으로 값을 찍어 보세요.</>}
+                  </p>
+                ) : (
+                  logs.map((entry, index) => (
+                    <div key={index} className={`log log--${entry.level}`}>
+                      <span className="log__mark" aria-hidden="true">
+                        {entry.level === 'error' ? '✕' : entry.level === 'warn' ? '!' : '›'}
+                      </span>
+                      <pre className="log__text">{entry.text}</pre>
+                      {entry.count > 1 && <span className="log__count">{entry.count}</span>}
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="wb__console" tabIndex={0}>
+                <p className="wb__empty">타입 표기는 빌드할 때 전부 지워집니다. 타입을 지우고 나면 이런 JavaScript가 남습니다.</p>
+                <pre className="wb__js">
+                  <code dangerouslySetInnerHTML={{ __html: highlight(compiledJs || '// (비어 있음)', 'js') }} />
+                </pre>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className={`wb__types${errorCount > 0 ? ' has-errors' : ''}`}>
           <header className="wb__bar">
             <span className="wb__label">타입 검사</span>
-            {diagnostics === null ? (
-              <span className="pill">검사 중</span>
-            ) : errorCount > 0 ? (
-              <span className="pill pill--bad">오류 {errorCount}</span>
-            ) : (
-              <span className="pill pill--good">통과</span>
-            )}
+            <span role="status">
+              {diagnostics === null ? (
+                <span className="pill">검사 중</span>
+              ) : errorCount > 0 ? (
+                <span className="pill pill--bad">오류 {errorCount}</span>
+              ) : (
+                <span className="pill pill--good">통과</span>
+              )}
+            </span>
           </header>
           {errorCount > 0 && diagnostics && (
             <ul className="wb__errors">

@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { lessons } from '../src/content';
 import type { Lesson, Runner } from '../src/content/types';
 import { buildExerciseCode, grade } from '../src/lib/grade';
-import { meetsGoal } from '../src/lib/goal';
+import { checkGoal, meetsGoal } from '../src/lib/goal';
 import { compile } from '../src/sandbox/compile';
 import { buildDocument } from '../src/sandbox/document';
 
@@ -247,10 +247,11 @@ if (!typesOnly) {
     console.log('  └');
   };
 
-  const observe = (result: RunResult, typeErrorCount: number) => ({
+  const observe = (result: RunResult, typeErrorCount: number, code: string) => ({
     typeErrors: typeErrorCount,
     console: result.logs.map((log) => log.text).join('\n'),
     preview: result.dom,
+    code,
   });
 
   const checkLesson = async (lesson: Lesson) => {
@@ -265,14 +266,15 @@ if (!typesOnly) {
       if (step.runner !== 'console' && !step.throws && !result.rendered) fail(step.id, '미리보기에 렌더링된 컴포넌트가 없습니다 (export default 필요)');
 
       if (step.mission) {
-        const initial = observe(result, errorLines(`${step.id}.code.${ext(step.runner)}`).size);
+        const initial = observe(result, errorLines(`${step.id}.code.${ext(step.runner)}`).size, step.code);
         if (meetsGoal(step.mission.goal, initial)) fail(`${step.id} 미션`, '처음 코드가 이미 목표를 달성합니다');
 
         const answer = await run(step.mission.answer, step.runner);
         show(`${step.id} 미션 정답`, answer);
-        const answerSeen = observe(answer, errorLines(`${step.id}.answer.${ext(step.runner)}`).size);
+        const answerSeen = observe(answer, errorLines(`${step.id}.answer.${ext(step.runner)}`).size, step.mission.answer);
         if (!meetsGoal(step.mission.goal, answerSeen)) {
-          fail(`${step.id} 미션 정답`, `목표를 달성하지 못합니다. 콘솔: ${JSON.stringify(answerSeen.console)} / 화면: ${JSON.stringify(answerSeen.preview.slice(0, 200))}`);
+          const unmet = checkGoal(step.mission.goal, answerSeen).filter((check) => !check.met).map((check) => check.label);
+          fail(`${step.id} 미션 정답`, `목표를 달성하지 못합니다 (${unmet.join(', ')}). 콘솔: ${JSON.stringify(answerSeen.console)} / 화면: ${JSON.stringify(answerSeen.preview.slice(0, 200))}`);
         }
         const bad = answer.logs.filter((log) => log.uncaught);
         if (bad.length > 0) fail(`${step.id} 미션 정답`, `런타임 오류: ${bad.map((log) => log.text).join(' | ')}`);

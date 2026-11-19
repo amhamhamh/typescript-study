@@ -20,7 +20,7 @@
   --tok-keyword: #9a2f7c;
   --tok-string: #8a4b12;
   --tok-number: #1c6b5a;
-  --tok-comment: #7d796c;
+  --tok-comment: #6b675b;
   --tok-type: #2b68b5;
   --tok-fn: #5b4bb0;
   --shadow: 0 1px 2px rgb(40 35 20 / 0.06), 0 8px 24px rgb(40 35 20 / 0.06);
@@ -53,7 +53,7 @@
   --tok-keyword: #d38ad0;
   --tok-string: #e0a56b;
   --tok-number: #7fd0bb;
-  --tok-comment: #6f7785;
+  --tok-comment: #8a93a3;
   --tok-type: #74aaf0;
   --tok-fn: #b3a5f5;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
@@ -283,7 +283,16 @@ pre code { background: none; padding: 0; font-size: inherit; border-radius: 0; }
 .wb__pane { display: flex; flex-direction: column; min-height: 0; }
 .wb__pane--preview { flex: 1.5 1 0; border-bottom: 1px solid var(--line); }
 .wb__lower { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; }
-.wb__pane--console { flex: 1 1 0; }
+.wb__pane--console { flex: 1 1 0; min-height: 72px; }
+/* 타입 오류가 있으면 오류 목록이 주인공입니다. 미리보기가 자리를 조금 내줍니다. */
+.wb--preview .wb__output:has(.wb__types.has-errors) .wb__pane--preview { flex: 1 1 0; }
+.wb__output:focus { outline: none; }
+.wb__output:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.wb__hint { font-size: 0.72rem; color: var(--muted); display: none; }
+.wb__editor:focus-within .wb__hint { display: inline; }
+.wb__failed { display: grid; gap: 10px; justify-items: start; padding: 14px 16px; border-top: 1px solid var(--line); font-size: 0.88rem; color: var(--bad); }
+.wb__tabs { display: flex; gap: 2px; }
+.wb__panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
 /* 휴대폰 미리보기는 세로로 길어야 하므로 배치를 바꿉니다: 왼쪽 위 에디터, 왼쪽 아래 콘솔·타입 검사, 오른쪽 전체가 휴대폰. */
 .wb--fill.wb--native { grid-template-columns: minmax(0, 1fr) clamp(280px, 26vw, 340px); grid-template-rows: minmax(0, 1fr) minmax(150px, 32%); }
@@ -336,7 +345,7 @@ pre code { background: none; padding: 0; font-size: inherit; border-radius: 0; }
 .log--error { background: var(--bad-soft); color: var(--bad); }
 .log--error .log__mark { color: var(--bad); }
 
-.wb__types { flex: none; display: flex; flex-direction: column; max-height: 36%; border-top: 1px solid var(--line); }
+.wb__types { flex: none; display: flex; flex-direction: column; max-height: 60%; border-top: 1px solid var(--line); }
 .wb__types .wb__bar { border-bottom: 0; }
 .wb__types.has-errors .wb__bar { border-bottom: 1px solid var(--line); }
 .wb__errors { overflow: auto; background: var(--code-bg); }
@@ -527,7 +536,7 @@ figcaption { font-size: 0.86rem; color: var(--muted); margin-top: 8px; }
   .wb--fill.wb--native .wb__types { flex: none; max-height: 220px; border-left: 0; border-top: 1px solid var(--line); }
   .wb--fill.wb--native .wb__pane--preview { border-bottom: 1px solid var(--line); }
   .wb__editor { border-right: 0; border-bottom: 1px solid var(--line); }
-  .wb--fill .wb__monaco { flex: none; height: 340px; }
+  .wb--fill .wb__monaco { flex: none; height: min(340px, 45dvh); }
   .wb .wb__output, .wb:not(.wb--fill) .wb__output { min-height: 0; }
   .wb__pane--preview { flex: none; height: 320px; }
   .wb--preview .wb__stage--phone { padding: 10px; }

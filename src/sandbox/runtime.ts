@@ -14,7 +14,7 @@ import * as ReactRedux from 'react-redux';
 import * as ReactNative from 'react-native-web';
 import { formatArgs } from './inspect';
 import { installMockFetch } from './mockApi';
-import { CHANNEL, type FromSandbox, type LogLevel, type RunRequest, type Runner } from './protocol';
+import { CHANNEL, LOOP_GUARD, type FromSandbox, type LogLevel, type RunRequest, type Runner } from './protocol';
 
 const SOURCE_NAME = 'example.tsx';
 
@@ -74,6 +74,8 @@ function patchConsole(): void {
       } catch {
         text = '[출력할 수 없는 값]';
       }
+      // console.error(error)로 넘어온 오류에도 줄 번호를 붙여 줍니다.
+      if (args.length === 1 && args[0] instanceof Error) text = describe(args[0]);
       if (!IGNORED.some((pattern) => pattern.test(text))) log(level, text);
     };
   }
@@ -122,6 +124,72 @@ function patchGlobals(): void {
   }
 }
 
+/**
+ * `toLocaleString()`처럼 로케일을 생략한 호출은 브라우저 언어 설정에 따라 결과가 달라집니다.
+ * (같은 12000이 '12,000' / '12.000' / '12 000') 설명과 미션이 누구에게나 같은 화면을 가리키도록
+ * 기본 로케일을 한국어로 고정합니다. 로케일을 직접 넘긴 호출은 그대로 둡니다.
+ */
+function patchLocale(): void {
+  const LOCALE = 'ko-KR';
+  type Localized = (this: unknown, locales?: unknown, options?: unknown) => string;
+  const pin = (proto: object, method: string): void => {
+    const target = proto as Record<string, Localized>;
+    const original = target[method];
+    if (typeof original !== 'function') return;
+    target[method] = function (this: unknown, locales?: unknown, options?: unknown) {
+      return original.call(this, locales ?? LOCALE, options);
+    };
+  };
+  pin(Number.prototype, 'toLocaleString');
+  for (const method of ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString']) pin(Date.prototype, method);
+
+  const intl = Intl as unknown as Record<string, new (locales?: unknown, options?: unknown) => object>;
+  for (const name of ['NumberFormat', 'DateTimeFormat']) {
+    const Original = intl[name];
+    if (typeof Original !== 'function') continue;
+    intl[name] = new Proxy(Original, {
+      construct: (target, args: unknown[]) => new target(args[0] ?? LOCALE, args[1]),
+      apply: (target, _self, args: unknown[]) => new target(args[0] ?? LOCALE, args[1]),
+    });
+  }
+}
+
+// ── 끝나지 않는 반복문 막기 ──────────────────────────────
+// compile.ts 가 모든 반복문 본문 첫머리에 이 함수의 호출을 넣어 둡니다.
+
+const LOOP_BUDGET_MS = 2000;
+let loopTicks = 0;
+let sliceStartedAt = 0;
+let inSlice = false;
+let tripped = false;
+
+function loopError(): Error {
+  const error = new Error(`반복문이 ${LOOP_BUDGET_MS / 1000}초 넘게 끝나지 않았습니다. 반복이 끝나는 조건을 확인해 보세요.`);
+  error.name = '실행 중단';
+  return error;
+}
+
+function loopGuard(): void {
+  // 한 번 걸리면 같은 동기 구간 안에서는 계속 던져서, 바깥 반복문이 try/catch로 삼켜도 빠져나오게 합니다.
+  if (tripped) throw loopError();
+  if (++loopTicks % 64 !== 0) return;
+  const now = performance.now();
+  if (!inSlice) {
+    // 타이머 콜백은 동기 코드가 끝나야 실행됩니다. 즉 이 플래그가 켜져 있는 동안은 "한 번도 쉬지 않고" 돌았다는 뜻입니다.
+    inSlice = true;
+    sliceStartedAt = now;
+    setTimeout(() => {
+      inSlice = false;
+      tripped = false;
+    }, 0);
+    return;
+  }
+  if (now - sliceStartedAt > LOOP_BUDGET_MS) {
+    tripped = true;
+    throw loopError();
+  }
+}
+
 // ── 모듈 ─────────────────────────────────────────────────
 
 function asModule(namespace: object): Record<string, unknown> {
@@ -167,7 +235,7 @@ class Boundary extends React.Component<{ children: React.ReactNode }, BoundarySt
   }
 
   componentDidCatch(error: Error): void {
-    log('error', `렌더링 중 오류 — ${describe(error)}`, true);
+    log('error', `컴포넌트 오류 — ${describe(error)}`, true);
   }
 
   render(): React.ReactNode {
@@ -175,7 +243,7 @@ class Boundary extends React.Component<{ children: React.ReactNode }, BoundarySt
     return React.createElement(
       'div',
       { className: 'tsl-crash' },
-      React.createElement('strong', null, '렌더링 중 오류가 났습니다'),
+      React.createElement('strong', null, '컴포넌트에서 오류가 났습니다'),
       React.createElement('span', null, `${this.state.error.name}: ${this.state.error.message}`),
     );
   }
@@ -190,11 +258,19 @@ function watchDom(root: HTMLElement): void {
   }).observe(root, { childList: true, subtree: true, characterData: true, attributes: true });
 }
 
+/** 함수 컴포넌트뿐 아니라 memo / forwardRef / lazy 로 감싼 컴포넌트도 받습니다. */
+function isComponent(value: unknown): value is React.ComponentType {
+  if (typeof value === 'function') return true;
+  if (typeof value !== 'object' || value === null) return false;
+  const tag = (value as { $$typeof?: unknown }).$$typeof;
+  return tag === Symbol.for('react.memo') || tag === Symbol.for('react.forward_ref') || tag === Symbol.for('react.lazy');
+}
+
 function mount(component: unknown, runner: Runner): boolean {
   const root = document.getElementById('root');
   if (!root || runner === 'console') return false;
 
-  if (typeof component !== 'function') {
+  if (!isComponent(component)) {
     root.innerHTML =
       '<p class="tsl-empty">미리보기에 표시할 컴포넌트가 없습니다.<br><code>export default function App() { … }</code> 형태로 내보내 주세요.</p>';
     return false;
@@ -206,7 +282,7 @@ function mount(component: unknown, runner: Runner): boolean {
     onUncaughtError: (error: unknown) => log('error', describe(error), true),
   };
   ReactDOMClient.createRoot(root, rootOptions).render(
-    React.createElement(Boundary, null, React.createElement(component as React.ComponentType)),
+    React.createElement(Boundary, null, React.createElement(component)),
   );
   return true;
 }
@@ -216,15 +292,26 @@ function mount(component: unknown, runner: Runner): boolean {
 async function run(request: RunRequest): Promise<void> {
   const module: { exports: Record<string, unknown> } = { exports: {} };
   let rendered = false;
+  // 최상위 await가 오래 걸려도 "멈춘 것"으로 오해받지 않도록, 살아 있다는 신호를 주기적으로 보냅니다.
+  const heartbeat = setInterval(() => post({ type: 'alive' }), 1000);
   try {
-    const execute = new AsyncFunction('require', 'module', 'exports', `${request.code}\n//# sourceURL=${SOURCE_NAME}`);
-    await execute(requireModule, module, module.exports);
+    const execute = new AsyncFunction(
+      'require',
+      'module',
+      'exports',
+      LOOP_GUARD,
+      `${request.code}\n//# sourceURL=${SOURCE_NAME}`,
+    );
+    await execute(requireModule, module, module.exports, loopGuard);
     rendered = mount(module.exports.default, request.runner);
   } catch (error) {
     log('error', describe(error), true);
   }
   // 첫 렌더링과 useEffect가 끝난 뒤에 "완료"를 알립니다.
-  setTimeout(() => post({ type: 'done', rendered }), 40);
+  setTimeout(() => {
+    clearInterval(heartbeat);
+    post({ type: 'done', rendered });
+  }, 40);
 }
 
 function isRunRequest(data: unknown): data is RunRequest {
@@ -235,6 +322,7 @@ let started = false;
 
 patchConsole();
 patchGlobals();
+patchLocale();
 installMockFetch();
 
 window.addEventListener('message', (event) => {

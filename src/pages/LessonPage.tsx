@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { chapters, lessons, neighbors } from '../content';
 import type { Exercise, Lesson, Step } from '../content/types';
-import { describeGoal, meetsGoal, type Observation } from '../lib/goal';
+import { checkGoal, meetsGoal } from '../lib/goal';
 import { buildExerciseCode, grade, type GradeResult } from '../lib/grade';
 import { href, lessonHref, type LessonPart } from '../lib/router';
 import { selectLessonProgress, useAppDispatch, useAppSelector } from '../store';
@@ -116,19 +116,7 @@ function GuideNav({ lesson, part }: LessonPageProps) {
 
 // ── 단계: 설명 + 미션 ────────────────────────────────────
 
-const emptyReport: BenchReport = { typeErrors: null, console: '', preview: '', edited: false };
-
-/** 목표의 각 조건이 지금 충족됐는지 한 줄씩 보여 주기 위한 계산 */
-function goalChecks(step: Step, seen: Observation): Array<{ label: string; met: boolean }> {
-  const goal = step.mission?.goal ?? {};
-  const labels = describeGoal(goal);
-  const single = [
-    ...(goal.noTypeErrors ? [{ noTypeErrors: true }] : []),
-    ...(goal.consoleIncludes ?? []).map((text) => ({ consoleIncludes: [text] })),
-    ...(goal.previewIncludes ?? []).map((text) => ({ previewIncludes: [text] })),
-  ];
-  return labels.map((label, index) => ({ label, met: meetsGoal(single[index] ?? {}, seen) }));
-}
+const emptyReport: BenchReport = { typeErrors: null, console: '', preview: '', code: '', edited: false };
 
 function StepView({ lesson, step, part }: { lesson: Lesson; step: Step; part: number }) {
   const dispatch = useAppDispatch();
@@ -163,11 +151,11 @@ function StepView({ lesson, step, part }: { lesson: Lesson; step: Step; part: nu
             <section className={`mission${completed ? ' is-done' : ''}`} aria-live="polite">
               <header className="mission__head">
                 <span className="mission__tag">{completed ? <><CheckIcon width={12} height={12} /> 미션 완료</> : '미션'}</span>
-                <span className="mission__where">오른쪽 에디터에서 직접 고쳐 보세요</span>
+                <span className="mission__where">에디터에서 직접 고쳐 보세요</span>
               </header>
               <p className="mission__text"><RichText text={mission.text} /></p>
               <ul className="mission__goals">
-                {goalChecks(step, report).map((check) => {
+                {checkGoal(mission.goal, report).map((check) => {
                   const met = check.met && report.edited;
                   return (
                     <li key={check.label} className={met ? 'is-met' : ''}>
@@ -183,7 +171,11 @@ function StepView({ lesson, step, part }: { lesson: Lesson; step: Step; part: nu
                     {showHint ? '힌트 숨기기' : '힌트'}
                   </button>
                 )}
-                <button className="btn btn--small btn--quiet" onClick={() => apiRef.current?.setValue(mission.answer)}>
+                <button
+                  className="btn btn--small btn--quiet"
+                  onClick={() => apiRef.current?.setValue(mission.answer)}
+                  title="에디터의 코드를 정답으로 바꿉니다. 에디터에서 Ctrl/Cmd+Z를 누르면 내 코드로 돌아갑니다."
+                >
                   정답 코드 넣기
                 </button>
               </div>
@@ -216,11 +208,19 @@ function ExerciseView({ lesson, exercise }: { lesson: Lesson; exercise: Exercise
     const api = apiRef.current;
     if (!api) return;
     setChecking(true);
-    const diagnostics = await api.diagnose();
-    const graded = grade(exercise, api.getValue(), diagnostics.length);
-    setResult(graded);
-    setChecking(false);
-    if (graded.ok) dispatch(exercisePassed(exercise.id));
+    try {
+      // 검사하는 동안 코드가 바뀌면, 오류 개수와 코드가 서로 다른 시점의 것이 됩니다. 그런 결과는 버립니다.
+      const code = api.getValue();
+      const diagnostics = await api.diagnose();
+      if (apiRef.current !== api || api.getValue() !== code) return;
+      const graded = grade(exercise, code, diagnostics.length);
+      setResult(graded);
+      if (graded.ok) dispatch(exercisePassed(exercise.id));
+    } catch {
+      setResult({ ok: false, reasons: ['채점하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'] });
+    } finally {
+      setChecking(false);
+    }
   };
 
   // 코드를 고치면 이전 채점 결과는 더 이상 맞지 않으므로 지웁니다.
@@ -340,7 +340,7 @@ function QuizView({ lesson }: { lesson: Lesson }) {
 
 export function LessonPage({ lesson, part }: LessonPageProps) {
   if (part === 'quiz') return <QuizView lesson={lesson} />;
-  if (part === 'exercise') return <ExerciseView lesson={lesson} exercise={lesson.exercise} />;
+  if (part === 'exercise') return <ExerciseView key={lesson.exercise.id} lesson={lesson} exercise={lesson.exercise} />;
 
   // 범위를 벗어난 단계 번호는 마지막 단계로 맞춥니다.
   const index = Math.min(part, lesson.steps.length) - 1;
