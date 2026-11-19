@@ -56,8 +56,8 @@ export default function NameForm() {
 }
 `,
       mission: {
-        text: '`handleChange`의 내용을 13행의 `onChange` 안으로 옮기고 6~9행을 지우세요. 옮기는 순간 `vaule` 두 곳에 빨간 줄이 생깁니다. `value`로 고치고, 입력창에 글자를 쳐서 인사말이 따라 바뀌는지 확인하세요.',
-        goal: { noTypeErrors: true },
+        text: '`handleChange`의 내용을 13행의 `onChange` 안으로 옮기고 6~9행을 지우세요. `e`에는 `: any`를 포함해 아무 타입도 적지 않습니다. 옮기는 순간 `vaule` 두 곳에 빨간 줄이 생깁니다. `value`로 고치고, 입력창에 글자를 쳐서 인사말이 따라 바뀌는지 확인하세요.',
+        goal: { noTypeErrors: true, codeIncludes: ['.value'], codeExcludes: ['handleChange', ': any'] },
         hint: '`onChange={(e) => { console.log(\'입력값:\', e.target.value); setName(e.target.value); }}`',
         answer: `import { useState } from 'react';
 
@@ -129,7 +129,7 @@ export default function AgeForm() {
 `,
       mission: {
         text: '7행의 `e`에 `ChangeEvent<HTMLInputElement>` 타입을 붙이세요. 9행에 "string은 number 자리에 넣을 수 없다"는 새 오류가 나타납니다. 숫자로 바꿔 넣도록 고친 뒤, 나이를 바꿔도 내년 나이가 올바른지 확인하세요.',
-        goal: { noTypeErrors: true },
+        goal: { noTypeErrors: true, codeIncludes: ['ChangeEvent<HTMLInputElement'] },
         hint: '`(e: ChangeEvent<HTMLInputElement>) =>` 그리고 9행은 `setAge(Number(e.target.value))`',
         answer: `import { useState } from 'react';
 import type { ChangeEvent } from 'react';
@@ -169,7 +169,7 @@ export default function AgeForm() {
             '`<select>` onChange → `ChangeEvent<HTMLSelectElement>`',
             'onKeyDown → `KeyboardEvent<HTMLInputElement>`',
             'onClick → `MouseEvent<HTMLButtonElement>`',
-            '`<form>` onSubmit → `SubmitEvent<HTMLFormElement>` (React 18 이하 프로젝트에서는 `FormEvent<HTMLFormElement>`)',
+            '`<form>` onSubmit → `SubmitEvent<HTMLFormElement>` (`SubmitEvent`가 없는 예전 `@types/react`에서는 `FormEvent<HTMLFormElement>`)',
           ],
         },
         {
@@ -220,8 +220,12 @@ export default function SearchForm() {
 }
 `,
       mission: {
-        text: '2행의 import에 `KeyboardEvent`, `SubmitEvent`를 추가하고 세 핸들러의 `e`에 알맞은 타입을 붙이세요. 그러면 13행에 새 오류가 나타납니다. `\'Escape\'`와 비교하도록 고친 뒤 Esc로 검색어가 지워지는지 확인하세요.',
-        goal: { noTypeErrors: true },
+        text: '2행의 import에 `KeyboardEvent`, `SubmitEvent`를 추가하고 세 핸들러의 `e`에 알맞은 타입을 붙이세요(`: any`는 답이 아닙니다). 그러면 13행에 새 오류가 나타납니다. `\'Escape\'`와 비교하도록 고친 뒤 Esc로 검색어가 지워지는지 확인하세요.',
+        goal: {
+          noTypeErrors: true,
+          codeIncludes: ['KeyboardEvent', 'SubmitEvent', 'Escape'],
+          codeExcludes: [': any'],
+        },
         hint: '차례로 `ChangeEvent<HTMLSelectElement>`, `KeyboardEvent<HTMLInputElement>`, `SubmitEvent<HTMLFormElement>`. 13행은 `e.key === \'Escape\'`',
         answer: `import { useState } from 'react';
 import type { ChangeEvent, KeyboardEvent, SubmitEvent } from 'react';
@@ -314,9 +318,9 @@ export default function ProductList() {
 }
 `,
       mission: {
-        text: '11행을 고쳐서 버튼의 어디를 눌러도 상품 id(`p1`, `p2`)가 찍히게 하세요.',
-        goal: { noTypeErrors: true },
-        hint: '`e.target` 대신 `e.currentTarget.value`',
+        text: '11행이 `e.target.value` 대신 `e.currentTarget.value`를 찍도록 고쳐서, 버튼의 어디를 눌러도 상품 id(`p1`, `p2`)가 나오게 하세요.',
+        goal: { noTypeErrors: true, codeIncludes: ['currentTarget.value'] },
+        hint: '`e.currentTarget`은 핸들러를 붙인 `<button>`입니다. `(e.target as HTMLButtonElement).value`처럼 단언으로 덮으면 빨간 줄만 사라지고 `undefined`는 그대로 나옵니다.',
         answer: `import type { MouseEvent } from 'react';
 
 const products = [
@@ -400,7 +404,7 @@ export default function ProfileForm() {
 `,
       mission: {
         text: '(1) 19행의 키 오타와 20행의 값 타입을 고치세요. (2) `Form`에 `agree: boolean`을 추가하고(초기값 `false`), `update(\'agree\', e.target.checked)`로 연결한 체크박스를 넣어 보세요. 미리보기의 JSON에 `"agree":false`가 보이면 성공입니다.',
-        goal: { noTypeErrors: true, previewIncludes: ['"agree":false'] },
+        goal: { noTypeErrors: true, previewIncludes: ['"agree":false'], codeIncludes: ['.checked'] },
         hint: '20행은 `update(\'age\', Number(e.target.value))`. 체크박스는 `<input type="checkbox" checked={form.agree} onChange={(e) => update(\'agree\', e.target.checked)} />`',
         answer: `import { useState } from 'react';
 

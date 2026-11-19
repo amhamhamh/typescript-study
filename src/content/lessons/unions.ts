@@ -111,13 +111,17 @@ console.log('끝까지 실행됨');
 `,
       mission: {
         text: '함수 첫 줄에서 `typeof`로 숫자인 경우를 먼저 처리하세요. 콘솔에 `120px`이 찍히고 마지막 줄까지 실행되면 성공입니다. 고친 뒤 각 줄의 `width`에 마우스를 올려 타입이 어떻게 달라지는지도 확인해 보세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['부모의 50%', '120px', '끝까지 실행됨'] },
-        hint: "`if (typeof width === 'number') return width + 'px';`를 맨 위에 넣으면, 그 아래에서는 `width`가 `string`입니다.",
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['부모의 50%', '120px', '끝까지 실행됨'],
+          codeIncludes: ['typeof'],
+        },
+        hint: "`if (typeof width === 'number') return width + 'px';`를 맨 위에 넣으면, 그 아래에서는 `width`가 `string`입니다. 마지막 줄에는 이제 문자열만 도달하니 `return width;`로 바꿉니다.",
         answer: `// RN 스타일의 width: 120 또는 '50%'
 function describeWidth(width: number | string): string {
   if (typeof width === 'number') return width + 'px';
   if (width.endsWith('%')) return '부모의 ' + width;
-  return width + 'px';
+  return width;
 }
 
 console.log(describeWidth('50%'));
@@ -230,7 +234,11 @@ console.log('끝까지 실행됨');
 `,
       mission: {
         text: '`render`를 `switch (state.status)`로 바꿔 세 상태를 모두 처리하세요. `error`일 때는 `오류: ` 뒤에 `message`를 붙여 돌려줍니다. `case` 안에서 `state.`을 입력해 자동완성이 어떻게 달라지는지 확인해 보세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['스피너', '상품 2개', '오류: 네트워크 오류', '끝까지 실행됨'] },
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['스피너', '상품 2개', '오류: 네트워크 오류', '끝까지 실행됨'],
+          codeIncludes: ['switch (state.status)'],
+        },
         hint: "`case 'success': return '상품 ' + state.items.length + '개';` `case 'error': return '오류: ' + state.message;`",
         answer: `type FetchState =
   | { status: 'loading' }
@@ -364,7 +372,11 @@ console.log('끝까지 실행됨');
 `,
       mission: {
         text: '12행의 `as User`를 지우세요. 숨어 있던 오류가 13행에 다시 나타납니다. 이번에는 좁히기로 해결해서, 못 찾았을 때 `(탈퇴한 사용자)`를 돌려주세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['박리덕', '(탈퇴한 사용자)', '끝까지 실행됨'] },
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['박리덕', '(탈퇴한 사용자)', '끝까지 실행됨'],
+          codeExcludes: ['as User'],
+        },
         hint: "`as User`를 지운 뒤 `return found?.name ?? '(탈퇴한 사용자)';` 또는 `if (!found) return '(탈퇴한 사용자)';`",
         answer: `interface User {
   id: number;

@@ -17,7 +17,7 @@ export const lesson: Lesson = {
           kind: 'callout',
           tone: 'bridge',
           title: '화면을 열어 봐야 보이던 스타일 오타',
-          text: 'JS로 쓴 RN 스타일은 값에 오타가 있어도 그 화면을 기기에서 직접 열어 보기 전에는 알 수 없습니다. 속성이 조용히 무시되어 레이아웃만 깨져 있는 경우도 많죠. props와 훅 타이핑은 웹 React에서 배운 그대로이고, 이 레슨은 **RN에서만 만나는 것**을 다룹니다. 오른쪽 미리보기는 휴대폰 화면입니다.',
+          text: 'JS로 쓴 RN 스타일은 값에 오타가 있어도 그 화면을 기기에서 직접 열어 보기 전에는 알 수 없습니다. 속성이 조용히 무시되어 레이아웃만 깨져 있는 경우도 많죠. props와 훅 타이핑은 웹 React에서 배운 그대로이고, 이 레슨은 **RN에서만 만나는 것**을 다룹니다. 이 레슨의 미리보기는 휴대폰 화면입니다.',
         },
         {
           kind: 'p',
@@ -60,12 +60,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   name: { fontSize: 16 },
-  price: { fontSize: 16, fontWeight: '700', color: '#2b68b5' },
+  price: { fontSize: 16, color: '#2b68b5' },
 });
 `,
       mission: {
-        text: '21행과 23행을 올바른 값으로 고쳐서, 이름과 가격이 한 줄에 나란히 놓이고 제목이 굵게 보이게 하세요.',
-        goal: { noTypeErrors: true, previewIncludes: ['장바구니', '129,000원'] },
+        text: '21행의 `fontWeight`와 23행의 `flexDirection`을 지우지 말고 올바른 값으로 고쳐서, 이름과 가격이 한 줄에 나란히(`flexDirection: \'row\'`) 놓이고 제목이 굵게 보이게 하세요.',
+        goal: {
+          noTypeErrors: true,
+          previewIncludes: ['장바구니', '129,000원'],
+          codeIncludes: ["flexDirection: 'row'", 'fontWeight:'],
+        },
         hint: '가로 배치는 `flexDirection: \'row\'`, 굵은 글씨는 `fontWeight: \'700\'`(또는 `\'bold\'`)입니다.',
         answer: `import { StyleSheet, Text, View } from 'react-native';
 
@@ -97,7 +101,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   name: { fontSize: 16 },
-  price: { fontSize: 16, fontWeight: '700', color: '#2b68b5' },
+  price: { fontSize: 16, color: '#2b68b5' },
 });
 `,
       },
@@ -172,7 +176,11 @@ const styles = StyleSheet.create({
 `,
       mission: {
         text: '`style`의 타입을 `StyleProp<ViewStyle>`로 바꾸고, 제목용 `titleStyle?: StyleProp<TextStyle>`을 추가해 `Text`에 적용하세요. 그다음 `오늘의 특가` 카드의 `fontSize: 24`를 `titleStyle`로 옮겨 글자가 실제로 커지게 하세요.',
-        goal: { noTypeErrors: true, previewIncludes: ['무선 마우스', '오늘의 특가'] },
+        goal: {
+          noTypeErrors: true,
+          previewIncludes: ['무선 마우스', '오늘의 특가'],
+          codeIncludes: ['StyleProp<ViewStyle>', 'StyleProp<TextStyle>', 'fontSize: 24'],
+        },
         hint: '`import type { StyleProp, TextStyle, ViewStyle }`, `<Text style={[styles.title, titleStyle]}>`, 그리고 `오늘의 특가` 카드는 `style={{ backgroundColor: \'#fff3cd\' }} titleStyle={{ fontSize: 24 }}`',
         answer: `import { StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
@@ -284,8 +292,12 @@ const styles = StyleSheet.create({
 });
 `,
       mission: {
-        text: '`AppButtonProps`가 `PressableProps`를 물려받게 하고, 나머지 props를 `...rest`로 `Pressable`에 넘기세요. `disabled`일 때는 미리 만들어 둔 `styles.off`도 적용해 보세요. `결제하기`가 흐려지고, 눌러도 콘솔에 아무것도 찍히지 않으면 성공입니다.',
-        goal: { noTypeErrors: true, previewIncludes: ['장바구니 0개', '결제하기'] },
+        text: '`AppButtonProps`가 `PressableProps`를 물려받게 하고, 나머지 props를 `...rest`로 모아 `<Pressable {...rest}>`로 넘기세요. `disabled`일 때는 미리 만들어 둔 `styles.off`도 적용하세요. `결제하기`가 흐려지고, 눌러도 콘솔에 아무것도 찍히지 않으면 성공입니다.',
+        goal: {
+          noTypeErrors: true,
+          previewIncludes: ['장바구니 0개', '결제하기'],
+          codeIncludes: ['PressableProps', '{...', 'styles.off'],
+        },
         hint: '`import type { PressableProps } from \'react-native\'`, `{ label, ...rest }: AppButtonProps`, `<Pressable style={[styles.btn, rest.disabled && styles.off]} {...rest}>`',
         answer: `import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -394,7 +406,11 @@ const styles = StyleSheet.create({
 `,
       mission: {
         text: '15행의 `renderProduct`에 `ListRenderItem<Product>` 타입을 붙이세요. 그러면 `item.name`에 빨간 줄이 생깁니다. 고쳐서 미리보기에 상품 이름이 나오게 하세요.',
-        goal: { noTypeErrors: true, previewIncludes: ['1. 기계식 키보드', '3. 27인치 모니터'] },
+        goal: {
+          noTypeErrors: true,
+          previewIncludes: ['1. 기계식 키보드', '3. 27인치 모니터'],
+          codeIncludes: ['ListRenderItem<Product>'],
+        },
         hint: '`import type { ListRenderItem } from \'react-native\'`, `const renderProduct: ListRenderItem<Product> = ({ item, index }) => (`, 그리고 `item.name`은 `item.title`로',
         answer: `import { FlatList, StyleSheet, Text, View } from 'react-native';
 import type { ListRenderItem } from 'react-native';
@@ -485,8 +501,12 @@ const styles = StyleSheet.create({
 });
 `,
       mission: {
-        text: '3행과 4행의 오타를 고쳐서 미리보기에 `스토어에서 업데이트해 주세요`가 나오게 하세요.',
-        goal: { noTypeErrors: true, previewIncludes: ['스토어에서 업데이트해 주세요', '현재 플랫폼: web'] },
+        text: '3행(`\'IOS\'` → `\'ios\'`)과 4행의 오타를 고쳐서 미리보기에 `스토어에서 업데이트해 주세요`가 나오게 하세요.',
+        goal: {
+          noTypeErrors: true,
+          previewIncludes: ['스토어에서 업데이트해 주세요', '현재 플랫폼: web'],
+          codeIncludes: ["'ios'"],
+        },
         hint: '`Platform.OS === \'ios\'`, 그리고 키 이름은 `default`입니다.',
         answer: `import { Platform, StyleSheet, Text, View } from 'react-native';
 
@@ -592,7 +612,11 @@ const styles = StyleSheet.create({
 `,
       mission: {
         text: '14행의 화면 이름과 15행의 params를 고치세요. 그다음 홈에 `27인치 모니터 ›` 링크를 하나 더 추가해 `p3` 상세 화면으로 이동하게 하세요. 세 링크를 눌렀을 때 `상품 P1`, `상품 P2`, `상품 P3`이 나오면 성공입니다.',
-        goal: { noTypeErrors: true, previewIncludes: ['기계식 키보드', '무선 마우스', '27인치 모니터'] },
+        goal: {
+          noTypeErrors: true,
+          previewIncludes: ['기계식 키보드', '무선 마우스', '27인치 모니터'],
+          codeIncludes: ["'p3'"],
+        },
         hint: '`navigate(\'Detail\', { productId: \'p2\' })`. 새 링크는 15행을 복사해 `productId: \'p3\'`으로 바꾸면 됩니다.',
         answer: `import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';

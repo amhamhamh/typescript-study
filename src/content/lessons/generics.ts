@@ -104,12 +104,12 @@ const show: OnDone = (total) => console.log('결제 금액:', total);
 
 checkout([1000, 2000], half, show);
 checkout([1000, 2000], (price) => price + '원', show);
-checkout([1000, 2000], half);
+checkout([4000, 6000], half);
 `,
       mission: {
-        text: '16행의 할인 콜백이 숫자를 돌려주도록 `price - 100`으로 고치고, 17행에는 세 번째 인자로 `show`를 넘기세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['결제 금액: 2800'] },
-        hint: '16행은 `(price) => price - 100`, 17행은 `checkout([1000, 2000], half, show)`',
+        text: '16행의 할인 콜백이 숫자를 돌려주도록 `price - 100`으로 고치고, 17행에는 세 번째 인자로 `show`를 넘기세요. 콘솔에 `결제 금액: 2800`과 `결제 금액: 5000`이 찍히면 성공입니다.',
+        goal: { noTypeErrors: true, consoleIncludes: ['결제 금액: 2800', '결제 금액: 5000'] },
+        hint: '16행은 `(price) => price - 100`, 17행은 `checkout([4000, 6000], half, show)`',
         answer: `type OnDone = (total: number) => void;
 
 function checkout(
@@ -126,7 +126,7 @@ const show: OnDone = (total) => console.log('결제 금액:', total);
 
 checkout([1000, 2000], half, show);
 checkout([1000, 2000], (price) => price - 100, show);
-checkout([1000, 2000], half, show);
+checkout([4000, 6000], half, show);
 `,
       },
     },
@@ -177,7 +177,11 @@ console.log(os.toFixed(1));
 `,
       mission: {
         text: '14행과 16행에서 배열은 그대로 두고 함수만 `first`로 바꾸세요. 14행의 오류가 사라지고, 16행을 바꾸는 순간 20행에 빨간 줄이 생깁니다. 그 줄을 문자열 메서드로 고쳐 콘솔에 `IOS`가 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['kim', 'IOS'] },
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['kim', 'IOS'],
+          codeIncludes: ['console.log(first', 'os = first'],
+        },
         hint: '`first([\'ios\', \'android\'])`의 결과는 `string | undefined`입니다. 20행은 `os?.toUpperCase()`',
         answer: `// 1) 타입을 고정하면 다른 배열에는 못 씁니다
 function firstNumber(items: number[]): number | undefined {
@@ -247,7 +251,7 @@ console.log(found.id, found.name.toUpperCase());
 `,
       mission: {
         text: '6행을 `new Map<string, User>()`로 바꾸세요. 8행과 12행에 빨간 줄이 생깁니다. 8행에는 `{ id: 2, name: \'park\' }`를 넣고, 12행의 `found.`을 `found?.`으로 고쳐 콘솔에 `2 PARK`가 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['2 PARK'] },
+        goal: { noTypeErrors: true, consoleIncludes: ['2 PARK'], codeIncludes: ['Map<string, User>'] },
         hint: '`cache.get()`은 키가 없을 수도 있어서 `User | undefined`를 돌려줍니다. 그래서 `found?.id`, `found?.name.toUpperCase()`처럼 확인이 필요합니다.',
         answer: `interface User {
   id: number;
@@ -309,8 +313,8 @@ console.log(findById(posts, 7)?.title);
 console.log(findById(tags, 1));
 `,
       mission: {
-        text: '1행의 `<T>`에 제약을 걸어 2행의 오류를 없애세요. 그러면 11행이 새로 잡힙니다. 11행을 `users`에서 1번을 찾아 이름을 출력하도록 바꿔 `김코딩`이 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['김코딩'] },
+        text: '1행의 `<T>`에 `extends`로 제약을 걸어 2행의 오류를 없애세요. 그러면 11행이 새로 잡힙니다. 11행을 `users`에서 1번을 찾아 이름을 출력하도록 바꿔 `김코딩`이 찍히게 하세요.',
+        goal: { noTypeErrors: true, consoleIncludes: ['김코딩'], codeIncludes: ['T extends'] },
         hint: '1행은 `function findById<T extends { id: number }>(...)`, 11행은 `findById(users, 1)?.name`',
         answer: `function findById<T extends { id: number }>(items: T[], id: number): T | undefined {
   return items.find((item) => item.id === id);
@@ -376,7 +380,7 @@ console.log(getField(keyboard, 'raitng').toFixed(1));
 `,
       mission: {
         text: '`getField`를 `<T, K extends keyof T>(obj: T, key: K): T[K]`로 바꾸세요. 10행의 오류가 사라지고 14행의 오타가 잡힙니다. 오타를 고쳐 콘솔에 평점 `4.5`가 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['4.5'] },
+        goal: { noTypeErrors: true, consoleIncludes: ['4.5'], codeIncludes: ['extends keyof'] },
         hint: '`function getField<T, K extends keyof T>(obj: T, key: K): T[K] { return obj[key]; }` 그리고 14행은 `\'rating\'`',
         answer: `interface Product {
   id: string;

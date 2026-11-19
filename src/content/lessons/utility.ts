@@ -50,7 +50,7 @@ console.log(updateProduct(keyboard, { stcok: 0 }));
 `,
       mission: {
         text: '10행의 `patch` 타입을 `Partial<Product>`로 바꿔 14행의 오류를 없애고, 15행의 오타를 고쳐 재고가 0으로 바뀌게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['price: 99000', 'stock: 0'] },
+        goal: { noTypeErrors: true, consoleIncludes: ['price: 99000', 'stock: 0'], codeIncludes: ['Partial<Product>'] },
         hint: '`patch: Partial<Product>` 그리고 15행은 `{ stock: 0 }`',
         answer: `interface Product {
   id: number;
@@ -125,7 +125,11 @@ console.log('새 상품 id:', created.id);
 `,
       mission: {
         text: '8행은 `Pick`, 9행은 `Omit`으로 바꾸세요. 11행과 15행의 오류가 사라지고, 18행의 `id: 1`이 새로 잡힙니다. 그것을 지워 콘솔에 `새 상품 id: 100`이 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['새 상품 id: 100'] },
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['새 상품 id: 100'],
+          codeIncludes: ['Pick<Product', 'Omit<Product'],
+        },
         hint: '`Pick<Product, \'id\' | \'title\' | \'price\'>`와 `Omit<Product, \'id\'>`',
         answer: `interface Product {
   id: number;
@@ -201,7 +205,11 @@ console.log(describe(keyboard, 'stock'));
 `,
       mission: {
         text: '8행의 `LABELS`에 `Record<keyof Product, string>` 타입을 붙이세요. 오류가 8행으로 옮겨 가며 빠진 키를 알려 줍니다. `stock: \'재고\'`를 추가해 콘솔에 `재고: 3`이 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['재고: 3'] },
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['재고: 3'],
+          codeIncludes: ['Record<keyof Product, string>'],
+        },
         hint: '`const LABELS: Record<keyof Product, string> = { ... }`',
         answer: `interface Product {
   id: number;
@@ -279,7 +287,7 @@ console.log(describe(defaultSettings));
 `,
       mission: {
         text: '7~10행의 `interface Settings`를 지우고 `type Settings = typeof defaultSettings;` 한 줄로 바꾸세요. 오류가 `describe` 안의 `toUpperCase`로 옮겨 갑니다. 그 부분을 `settings.fontSize + \'px\'`로 고쳐 콘솔에 `light / 14px`가 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['light / 14px'] },
+        goal: { noTypeErrors: true, consoleIncludes: ['light / 14px'], codeIncludes: ['typeof defaultSettings'] },
         hint: '`typeof defaultSettings`는 `{ theme: string; fontSize: number; pushEnabled: boolean }`입니다. 숫자에는 `toUpperCase`가 없습니다.',
         answer: `const defaultSettings = {
   theme: 'light',
@@ -355,7 +363,7 @@ console.log('actvie:', visibleTodos('actvie').length);
 `,
       mission: {
         text: '1행의 배열 뒤에 `as const`를 붙이세요. 18행의 오타가 드디어 잡힙니다. 오타 두 곳을 `active`로 고쳐 콘솔에 `active: 2`가 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['active: 2'] },
+        goal: { noTypeErrors: true, consoleIncludes: ['active: 2'], codeIncludes: ['as const'] },
         hint: '`const TABS = [\'all\', \'active\', \'done\'] as const;`',
         answer: `const TABS = ['all', 'active', 'done'] as const;
 type Tab = (typeof TABS)[number];
@@ -423,7 +431,7 @@ console.log(badge('주의', 'warning'));
 `,
       mission: {
         text: '`type ColorName = keyof typeof COLORS;`를 만들어 7행 `color`의 타입으로 쓰세요. 8행의 오류가 사라지고 12행의 `\'warning\'`이 잡힙니다. 이번에는 호출을 고치지 말고 `COLORS`에 `warning: \'#f5a623\'`을 추가해 보세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['주의 → #f5a623'] },
+        goal: { noTypeErrors: true, consoleIncludes: ['주의 → #f5a623'], codeIncludes: ['keyof typeof COLORS'] },
         hint: '`function badge(text: string, color: ColorName): string`. 객체에 키를 추가하면 `ColorName`에 `\'warning\'`이 저절로 들어갑니다.',
         answer: `const COLORS = {
   primary: '#2b68b5',

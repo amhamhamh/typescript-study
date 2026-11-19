@@ -21,7 +21,7 @@ export const lesson: Lesson = {
         },
         {
           kind: 'p',
-          text: '오른쪽은 JS 리듀서를 그대로 옮기고 `TodoAction`만 가장 느슨하게 적은 코드입니다(3행). 타입 오류는 0개입니다. 그런데 콘솔을 보세요. 20행은 `toggle` 오타라 **조용히 무시**됐고, 23행은 payload에 문자열을 넣어 목록에 `undefined`가 끼었고, 26행은 payload를 빠뜨려 10행에서 **크래시**가 났습니다.',
+          text: '에디터의 코드는 JS 리듀서를 그대로 옮기고 `TodoAction`만 가장 느슨하게 적은 것입니다(3행). 타입 오류는 0개입니다. 그런데 콘솔을 보세요. 20행은 `toggle` 오타라 **조용히 무시**됐고, 23행은 payload에 문자열을 넣어 목록에 `undefined`가 끼었고, 26행은 payload를 빠뜨려 10행에서 **크래시**가 났습니다.',
         },
         {
           kind: 'compare',
@@ -73,7 +73,11 @@ console.log('3.', show(state));
 `,
       mission: {
         text: '3행의 `TodoAction`을 위 비교의 TS 쪽처럼 두 액션의 유니온으로 바꾸세요. 아래쪽 세 호출이 모두 빨개집니다. 차례로 고치세요: 1번은 id 1 토글, 2번은 `{ id: 2, title: \'배포하기\', done: false }` 추가, 3번은 id 2 토글.',
-        goal: { noTypeErrors: true, consoleIncludes: ['1. [x] 타입 붙이기', '[ ] 배포하기', '[x] 배포하기'] },
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['1. [x] 타입 붙이기', '[ ] 배포하기', '[x] 배포하기'],
+          codeExcludes: ['type: string', ': any'],
+        },
         hint: '토글 액션은 `{ type: \'todos/toggled\', payload: { id: 1 } }` 모양입니다. 오류 메시지가 틀린 부분(타입 이름, payload)을 짚어 줍니다.',
         answer: `interface Todo { id: number; title: string; done: boolean }
 
@@ -248,8 +252,8 @@ state = reducer(state, { type: 'todos/cleared' });
 console.log('남은 할 일:', state.length);
 `,
       mission: {
-        text: '(1) 유니온에 `{ type: \'todos/cleared\' }`를 추가하세요. 아래쪽 호출의 오류가 사라지고 **`never` 줄로 옮겨 갑니다**. 메시지에 빠뜨린 액션의 모양이 그대로 나옵니다. (2) 빈 배열을 돌려주는 `case`를 추가해 콘솔에 `남은 할 일: 0`이 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['남은 할 일: 0'] },
+        text: '(1) 유니온에 `{ type: \'todos/cleared\' }`를 추가하세요. 아래쪽 호출의 오류가 사라지고 **`never` 줄로 옮겨 갑니다**. 메시지에 빠뜨린 액션의 모양이 그대로 나옵니다. (2) `never` 줄은 지우지 말고, 빈 배열을 돌려주는 `case`를 추가해 콘솔에 `남은 할 일: 0`이 찍히게 하세요.',
+        goal: { noTypeErrors: true, consoleIncludes: ['남은 할 일: 0'], codeIncludes: ['never'] },
         hint: '유니온 마지막 줄에 `| { type: \'todos/cleared\' };`, 리듀서에 `case \'todos/cleared\': return [];`',
         answer: `interface Todo { id: number; title: string; done: boolean }
 
@@ -340,7 +344,7 @@ console.log(state);
 `,
       mission: {
         text: '두 액션 생성 함수에 반환 타입 `: TodoAction`을 붙이세요. 25행의 오류는 사라지고, 26행의 오류는 22행의 오타로 옮겨 갑니다. 오타를 고쳐 콘솔에 `done: true`가 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['done: true'] },
+        goal: { noTypeErrors: true, consoleIncludes: ['done: true'], codeIncludes: ['): TodoAction'] },
         hint: '`(id: number): TodoAction => ({ ... })` 처럼 매개변수 괄호 뒤에 적습니다. 22행의 타입 이름은 `\'todos/toggled\'`',
         answer: `interface Todo { id: number; title: string; done: boolean }
 
@@ -438,7 +442,7 @@ export default function TodoApp() {
 `,
       mission: {
         text: '27행과 28행의 `dispatch` 호출을 고치세요. 그다음 미리보기에서 체크박스와 "전체 삭제"가 이제 동작하는지 눌러서 확인해 보세요.',
-        goal: { noTypeErrors: true },
+        goal: { noTypeErrors: true, codeExcludes: ['payload: id', 'todos/clear'] },
         hint: '토글의 payload는 `{ id }` 모양이고, 전체 삭제의 타입 이름은 `\'todos/cleared\'`입니다.',
         answer: `import { useReducer } from 'react';
 

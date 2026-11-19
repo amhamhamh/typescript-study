@@ -160,7 +160,7 @@ export default function App() {
 `,
       mission: {
         text: '22행은 그대로 두고 `Avatar` 쪽을 고치세요. `size`와 `online`을 선택 props로 바꾸고 기본값을 `40`, `false`로 줘서 둘째 줄에 `40px`이 보이게 합니다.',
-        goal: { noTypeErrors: true, previewIncludes: ['40px'] },
+        goal: { noTypeErrors: true, previewIncludes: ['40px'], codeIncludes: ['<Avatar name="박리덕" />'] },
         hint: '타입에는 `size?: number`, 구조 분해에는 `{ name, size = 40, online = false }`',
         answer: `interface AvatarProps {
   name: string;
@@ -361,8 +361,8 @@ export default function App() {
 }
 `,
       mission: {
-        text: '`CardProps`에 `children`을, `ProductRowProps`에 `onSelect`를 선언해서 오류 다섯 곳을 한 번에 없애세요. JSX는 고치지 않습니다.',
-        goal: { noTypeErrors: true },
+        text: '`CardProps`에 `children`을, `ProductRowProps`에 `onSelect`를 선언해서 오류 다섯 곳을 한 번에 없애세요. JSX는 고치지 않고, `any`도 쓰지 않습니다.',
+        goal: { noTypeErrors: true, codeExcludes: ['any'] },
         hint: '`children: ReactNode;` 와 `onSelect: (id: number) => void;` 두 줄이면 됩니다. `ReactNode`는 2행에 이미 import 되어 있습니다.',
         answer: `import { useState } from 'react';
 import type { ReactNode } from 'react';
@@ -466,8 +466,8 @@ export default function App() {
 }
 `,
       mission: {
-        text: '`ButtonProps`가 `ComponentProps<\'button\'>`을 물려받게 하고, `Button`이 나머지 props를 `<button>`에 그대로 넘기게 고치세요. 빨간 줄을 없앤 뒤, 미리보기에서 `저장`이 파란색으로, `삭제`가 흐리게(비활성화) 바뀌었는지도 직접 확인하세요.',
-        goal: { noTypeErrors: true },
+        text: '`ButtonProps`가 `ComponentProps<\'button\'>`을 물려받게 하고, `Button`이 나머지 props를 `...rest`로 받아 `<button>`에 `{...rest}`로 그대로 넘기게 고치세요. 빨간 줄을 없앤 뒤, 미리보기에서 `저장`이 파란색으로, `삭제`가 흐리게(비활성화) 바뀌었는지도 직접 확인하세요.',
+        goal: { noTypeErrors: true, codeIncludes: ['ComponentProps<', '{...'] },
         hint: '`interface ButtonProps extends ComponentProps<\'button\'> { loading?: boolean }` 로 줄이고, `{ loading = false, disabled, children, ...rest }`로 받아 `<button disabled={loading || disabled} {...rest}>`',
         answer: `import type { ComponentProps } from 'react';
 

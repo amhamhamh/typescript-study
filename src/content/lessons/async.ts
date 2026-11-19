@@ -21,7 +21,7 @@ export const lesson: Lesson = {
         },
         {
           kind: 'p',
-          text: '오른쪽 코드는 실습용 가짜 서버의 `/api/posts`를 호출합니다. 14행의 `posts` 위에 마우스를 올리면 `any`입니다. 그래서 16행의 `like`(정답은 `likes`)와 17행의 `writer`(정답은 `author`)가 오타인데도 타입 오류는 **0개**입니다. 콘솔에는 `NaN`이 찍혔고 17행에서 크래시했습니다.',
+          text: '에디터의 코드는 실습용 가짜 서버의 `/api/posts`를 호출합니다. 14행의 `posts` 위에 마우스를 올리면 `any`입니다. 그래서 16행의 `like`(정답은 `likes`)와 17행의 `writer`(정답은 `author`)가 오타인데도 타입 오류는 **0개**입니다. 콘솔에는 `NaN`이 찍혔고 17행에서 크래시했습니다.',
         },
         {
           kind: 'code',
@@ -62,7 +62,7 @@ main();
 `,
       mission: {
         text: '8행의 `fetchPosts`에 반환 타입 `Promise<Post[]>`를 붙이세요. 16행과 17행의 오타에 빨간 줄이 생깁니다. 둘을 고쳐 `좋아요: 13`과 `작성자: 김코딩`이 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['좋아요: 13', '작성자: 김코딩'] },
+        goal: { noTypeErrors: true, consoleIncludes: ['좋아요: 13', '작성자: 김코딩'], codeIncludes: ['Promise<Post[]>'] },
         hint: '`async function fetchPosts(): Promise<Post[]> {` 그리고 `posts[0].likes`, `posts[0].author.name`',
         answer: `interface Post {
   id: number;
@@ -145,8 +145,8 @@ async function main() {
 main();
 `,
       mission: {
-        text: '`fetchUser`를 설명에 있는 코드처럼 바꿔 `User | null`을 돌려주게 하세요. 그러면 `showUser`에서 `user`가 null일 수 있다는 오류가 납니다. null이면 `응답이 User 모양이 아닙니다`를 출력하고 `return` 하도록 고치세요. `/api/me`는 그대로 통과하고 `/api/broken-user`만 걸러지면 성공입니다.',
-        goal: { noTypeErrors: true, consoleIncludes: ['이니셜: 김', '응답이 User 모양이 아닙니다'] },
+        text: '`fetchUser`를 설명에 있는 코드처럼 바꿔 `Promise<User | null>`을 돌려주게 하세요. 그러면 `showUser`에서 `user`가 null일 수 있다는 오류가 납니다. null이면 `응답이 User 모양이 아닙니다`를 출력하고 `return` 하도록 고치세요. `/api/me`는 그대로 통과하고 `/api/broken-user`만 걸러지면 성공입니다.',
+        goal: { noTypeErrors: true, consoleIncludes: ['이니셜: 김', '응답이 User 모양이 아닙니다'], codeIncludes: ['Promise<User | null>'] },
         hint: '`showUser` 안에서 `if (!user) { console.log(path, \'→ 응답이 User 모양이 아닙니다\'); return; }` 로 먼저 걸러 내면 그 아래에서는 `user`가 `User`입니다.',
         answer: `interface User { id: number; name: string }
 
@@ -234,8 +234,8 @@ async function main() {
 main();
 `,
       mission: {
-        text: '`catch` 블록에서 `error`가 `Error`인지 확인해 메시지를 꺼내고, 아니면 `String(error)`를 쓰도록 고치세요. 셋째 줄이 `/posts → 실패: 잘못된 주소: /posts`로 바뀌면 성공입니다.',
-        goal: { noTypeErrors: true, consoleIncludes: ['실패: HTTP 500', '실패: 잘못된 주소: /posts'] },
+        text: '`catch` 블록에서 `error instanceof Error`로 확인해 메시지를 꺼내고, 아니면 `String(error)`를 쓰도록 고치세요. 셋째 줄이 `/posts → 실패: 잘못된 주소: /posts`로 바뀌면 성공입니다.',
+        goal: { noTypeErrors: true, consoleIncludes: ['실패: HTTP 500', '실패: 잘못된 주소: /posts'], codeIncludes: ['instanceof Error'] },
         hint: '13행 위에 `const message = error instanceof Error ? error.message : String(error);` 를 두고 `message`를 출력합니다.',
         answer: `async function getJson(url: string): Promise<unknown> {
   if (!url.startsWith('/api/')) throw '잘못된 주소: ' + url;
@@ -295,7 +295,7 @@ main();
         },
         {
           kind: 'p',
-          text: '오른쪽 코드는 **state의 타입만** 판별 유니온으로 바꿔 둔 상태입니다(5~8, 19행). 나머지는 옛 모양 그대로라 고칠 곳 여섯 줄이 모두 빨갛습니다. 타입을 먼저 바꾸고 빨간 줄을 따라가는 것이 TS에서 리팩터링하는 방법입니다.',
+          text: '에디터의 코드는 **state의 타입만** 판별 유니온으로 바꿔 둔 상태입니다(5~8, 19행). 나머지는 옛 모양 그대로라 고칠 곳 여섯 줄이 모두 빨갛습니다. 타입을 먼저 바꾸고 빨간 줄을 따라가는 것이 TS에서 리팩터링하는 방법입니다.',
         },
       ],
       code: `import { useEffect, useState } from 'react';
@@ -340,7 +340,7 @@ export default function App() {
 `,
       mission: {
         text: '빨간 줄을 위에서부터 고치세요. 19행은 `{ status: \'loading\' }`, 23~24행은 `success`와 `error` 상태, 27~28행은 `state.status`로 분기합니다. 29행은 손대지 않아도 오류가 사라집니다. 앞의 두 `if`가 loading과 error를 걸러 내서 남은 것이 success뿐이기 때문입니다.',
-        goal: { noTypeErrors: true, previewIncludes: ['TypeScript 첫걸음', '요청 실패: HTTP 500'] },
+        goal: { noTypeErrors: true, previewIncludes: ['TypeScript 첫걸음', '요청 실패: HTTP 500'], codeIncludes: ['state.status'] },
         hint: '`setState({ status: \'success\', data })`, `setState({ status: \'error\', message: toMessage(e) })`, `if (state.status === \'error\') return <p>요청 실패: {state.message}</p>;`',
         answer: `import { useEffect, useState } from 'react';
 

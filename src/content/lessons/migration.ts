@@ -135,8 +135,13 @@ console.log(truncate('React Navigation params 타이핑'));
 console.log(formatDate('2026-11-19T09:00:00'));
 `,
       mission: {
-        text: '세 함수의 매개변수에 타입을 붙이세요. `date: Date`를 붙이면 16행에 새 오류가 나타납니다. 그 호출이 `Date` 객체를 넘기도록 고쳐 콘솔에 `2026.11.19`가 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['2.4km', '2026.11.19'] },
+        text: '세 함수의 매개변수에 타입을 붙이세요(`any`는 쓰지 않습니다). `date: Date`를 붙이면 16행에 새 오류가 나타납니다. 그 호출이 `Date` 객체를 넘기도록 고쳐 콘솔에 `2026.11.19`가 찍히게 하세요.',
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['2.4km', '2026.11.19'],
+          codeIncludes: ['date: Date'],
+          codeExcludes: [': any'],
+        },
         hint: '`meters: number`, `text: string`, `date: Date`. `max`는 기본값 `10`에서 `number`로 추론되니 그대로 둡니다. 16행은 문자열을 `new Date(...)`로 감싸면 됩니다.',
         answer: `// utils/format.ts (format.js에서 확장자만 바꾼 상태)
 function formatDistance(meters: number) {
@@ -211,8 +216,13 @@ console.log('수량:', countItems(cart));
 console.log('품절:', getSoldOut(cart));
 `,
       mission: {
-        text: '`CartItem` 인터페이스를 하나 선언하고, 세 함수의 `items`와 `cart`에 `CartItem[]`을 붙이세요. 그러면 `cart`의 둘째 상품에 새 오류가 나타납니다. 데이터를 고쳐 콘솔에 `합계: 227000`, `수량: 3`이 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['합계: 227000', '수량: 3'] },
+        text: '`CartItem` 인터페이스를 하나 선언하고, 세 함수의 `items`와 `cart`에 `CartItem[]`을 붙이세요(`any`는 쓰지 않습니다). 그러면 `cart`의 둘째 상품에 새 오류가 나타납니다. 데이터를 고쳐 콘솔에 `합계: 227000`, `수량: 3`이 찍히게 하세요.',
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['합계: 227000', '수량: 3'],
+          codeIncludes: ['CartItem[]'],
+          codeExcludes: [': any'],
+        },
         hint: '`interface CartItem { id: string; title: string; price: number; qty: number; stock: number }`, `items: CartItem[]`, `const cart: CartItem[] = [...]`. 둘째 상품은 `price: 49000, qty: 2`',
         answer: `// 장바구니 유틸 (cart.js에서 확장자만 바꾼 상태)
 interface CartItem {
@@ -297,7 +307,11 @@ console.log('빌드', AppInfo.getBuildNumbr());
 `,
       mission: {
         text: '화면에서 빌드 번호도 쓸 수 있게 `AppInfoModule`에 `getBuildNumber(): number`를 추가하고, 마지막 줄의 오타를 고치세요. 콘솔에 `빌드 87`이 찍히면 성공입니다.',
-        goal: { noTypeErrors: true, consoleIncludes: ['버전 2.1.0', '빌드 87'] },
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['버전 2.1.0', '빌드 87'],
+          codeIncludes: ['getBuildNumber(): number'],
+        },
         hint: '인터페이스에 `getBuildNumber(): number;` 한 줄을 추가하고, 마지막 줄은 `AppInfo.getBuildNumber()`',
         answer: `// 네이티브 모듈을 흉내 낸 값입니다. RN의 NativeModules도 타입이 이렇게 선언되어 있습니다.
 const NativeModules: { [moduleName: string]: any } = {
@@ -375,7 +389,11 @@ export default function App() {
 `,
       mission: {
         text: '`as any`와 `@ts-ignore` 주석을 지우세요. 숨어 있던 오류가 나타나면 제대로 고쳐서, 미리보기에 두 상품의 이름과 가격이 모두 나오게 하세요.',
-        goal: { noTypeErrors: true, previewIncludes: ['기계식 키보드', '129,000원', '무선 마우스', '49,000원'] },
+        goal: {
+          noTypeErrors: true,
+          previewIncludes: ['기계식 키보드', '129,000원', '무선 마우스', '49,000원'],
+          codeExcludes: ['as any'],
+        },
         hint: '서버 데이터는 `{ id: \'p1\', title: \'기계식 키보드\', price: 129000 }`이어야 하고, 둘째 줄은 `item`이 아니라 `product`로 넘겨야 합니다.',
         answer: `interface Product {
   id: string;

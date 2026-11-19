@@ -51,8 +51,8 @@ export default function App() {
 }
 `,
       mission: {
-        text: '11행에서 문자열을 숫자로 바꿔 넣어 타입 오류를 없애세요. 고친 뒤 `2`를 입력하고 `+1`을 누르면 이번에는 `3`이 됩니다.',
-        goal: { noTypeErrors: true },
+        text: '11행에서 문자열을 숫자로 바꿔 넣어 타입 오류를 없애세요. `any`는 쓰지 않습니다. 고친 뒤 `2`를 입력하고 `+1`을 누르면 이번에는 `3`이 됩니다.',
+        goal: { noTypeErrors: true, codeExcludes: ['any'] },
         hint: '`setQty(Number(e.target.value))`',
         answer: `import { useState } from 'react';
 
@@ -130,8 +130,8 @@ export default function App() {
 }
 `,
       mission: {
-        text: '9행과 10행의 `useState`에 꺾쇠를 채워 오류 세 곳을 없애세요. `user`는 `User` 또는 `null`, `todos`는 문자열 배열입니다.',
-        goal: { noTypeErrors: true },
+        text: '9행과 10행의 `useState`에 꺾쇠를 채워 오류 세 곳을 없애세요. `user`는 `User` 또는 `null`, `todos`는 문자열 배열입니다. `any`는 쓰지 않습니다.',
+        goal: { noTypeErrors: true, codeExcludes: ['any'] },
         hint: '`useState<User | null>(null)` 과 `useState<string[]>([])`',
         answer: `import { useState } from 'react';
 
@@ -210,7 +210,7 @@ export default function App() {
 `,
       mission: {
         text: '16행의 `useState`에 `<Tab>`을 붙이세요. 25행의 오류가 사라지고, 대신 오타가 난 두 줄이 정확히 드러납니다. 둘 다 고쳐서 처음 화면에 `주문 내역 3건`이 보이게 하세요.',
-        goal: { noTypeErrors: true, previewIncludes: ['주문 내역 3건'] },
+        goal: { noTypeErrors: true, previewIncludes: ['주문 내역 3건'], codeIncludes: ['useState<Tab>'] },
         hint: '`useState<Tab>(\'orders\')`, 그리고 23행은 `setTab(\'settings\')`',
         answer: `import { useState } from 'react';
 
@@ -296,8 +296,8 @@ export default function App() {
 }
 `,
       mission: {
-        text: '(1) 5행의 `useRef`에 input 요소 타입을 적고, (2) 9행을 `current`가 `null`이어도 죽지 않게 고치세요. 화면이 살아나면 `검색 열기`를 눌러 검색창에 커서가 들어가는지 확인해 보세요.',
-        goal: { noTypeErrors: true, previewIncludes: ['검색 열기'] },
+        text: '(1) 5행의 `useRef` 꺾쇠에 input 요소 타입 `HTMLInputElement`를 적고, (2) 9행을 `current`가 `null`이어도 죽지 않게 고치세요. 화면이 살아나면 `검색 열기`를 눌러 검색창에 커서가 들어가는지 확인해 보세요.',
+        goal: { noTypeErrors: true, previewIncludes: ['검색 열기'], codeIncludes: ['HTMLInputElement'] },
         hint: '`useRef<HTMLInputElement>(null)` 그리고 `inputRef.current?.focus()`',
         answer: `import { useEffect, useRef, useState } from 'react';
 
@@ -361,8 +361,8 @@ export default function App() {
 }
 `,
       mission: {
-        text: '6행을 고쳐 `useCounter`가 튜플을 돌려주게 하세요. 14, 15행은 건드리지 않습니다.',
-        goal: { noTypeErrors: true },
+        text: '6행을 고쳐 `useCounter`가 튜플을 돌려주게 하세요. 14, 15행은 건드리지 않고, `any`도 쓰지 않습니다.',
+        goal: { noTypeErrors: true, codeExcludes: ['any'] },
         hint: '`return [count, increase] as const;`',
         answer: `import { useState } from 'react';
 

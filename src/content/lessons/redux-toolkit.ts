@@ -154,8 +154,8 @@ store.dispatch(filterReset());
 console.log(store.getState());
 `,
       mission: {
-        text: '10행의 `initialState`에 `TodosState` 타입을 붙이세요. 새로 빨개지는 20행의 오타를 고쳐 콘솔의 state에 `filter: \'all\'`이 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ["filter: 'all'"] },
+        text: '10행의 `initialState`에 타입 표기 `: TodosState`를 붙이세요. 새로 빨개지는 20행의 오타를 고쳐 콘솔의 state에 `filter: \'all\'`이 찍히게 하세요.',
+        goal: { noTypeErrors: true, consoleIncludes: ["filter: 'all'"], codeIncludes: [': TodosState'] },
         hint: '`const initialState: TodosState = { items: [], filter: \'all\' };`',
         answer: `import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
@@ -247,7 +247,7 @@ console.log('담은 개수:', selectCount(store.getState()));
 `,
       mission: {
         text: '19~22행의 `interface RootState`를 지우고 `ReturnType<typeof store.getState>`로 바꾸세요. 오류가 28행에서 실제로 크래시한 셀렉터로 옮겨 갑니다. 셀렉터를 고쳐 `담은 개수: 2`가 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['담은 개수: 2'] },
+        goal: { noTypeErrors: true, consoleIncludes: ['담은 개수: 2'], codeIncludes: ['ReturnType<typeof store.getState>'] },
         hint: '`type RootState = ReturnType<typeof store.getState>;` 그리고 셀렉터는 `state.cart.count`',
         answer: `import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
@@ -342,7 +342,7 @@ export default function App() {
 `,
       mission: {
         text: '`useAppSelector`를 만들어 16행의 `useSelector`와 `any`를 대체하세요. 그러면 오타에 빨간 줄이 생깁니다. 고쳐서 미리보기에 할 일 목록이 나오게 하세요. 19행의 `: Todo`도 이제 필요 없습니다.',
-        goal: { noTypeErrors: true, previewIncludes: ['타입 붙이기', '배포하기'] },
+        goal: { noTypeErrors: true, previewIncludes: ['타입 붙이기', '배포하기'], codeIncludes: ['useAppSelector'], codeExcludes: ['any'] },
         hint: '`const useAppSelector = useSelector.withTypes<RootState>();` 를 13행 아래에 두고, `useAppSelector((state) => state.todos)`',
         answer: `import { configureStore, createSlice } from '@reduxjs/toolkit';
 import { Provider, useSelector } from 'react-redux';
@@ -452,8 +452,8 @@ export default function App() {
 }
 `,
       mission: {
-        text: '23행 아래에 `useAppDispatch`를 만들고, 27행의 `useDispatch()`를 `useAppDispatch()`로 바꿔 오류를 없애세요. 버튼은 지우지 않습니다. 그런 다음 버튼 두 개를 눌러 보세요.',
-        goal: { noTypeErrors: true, previewIncludes: ['0.5초 뒤 +10'] },
+        text: '23행 아래에 `useAppDispatch`를 만들고, 27행의 `useDispatch()`를 `useAppDispatch()`로 바꿔 오류를 없애세요. 32행의 `dispatch(addLater(10))`은 그대로 두고, `any`로 덮지도 않습니다. 그런 다음 버튼 두 개를 눌러 보세요.',
+        goal: { noTypeErrors: true, previewIncludes: ['0.5초 뒤 +10'], codeIncludes: ['dispatch(addLater(10))'], codeExcludes: ['any'] },
         hint: '`const useAppDispatch = useDispatch.withTypes<AppDispatch>();`',
         answer: `import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { Provider, useDispatch, useSelector } from 'react-redux';

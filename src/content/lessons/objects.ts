@@ -153,7 +153,7 @@ console.log('끝까지 실행됨');
         },
         {
           kind: 'p',
-          text: '9행과 10행은 받은 객체를 그 자리에서 고칩니다. 타입 검사는 두 줄을 모두 지목했고, 콘솔 둘째 줄을 보면 그 결과가 보입니다. 관리자용 설정을 만들었을 뿐인데 **모두가 함께 쓰는 `defaults`까지** `dark`로 바뀌었습니다.',
+          text: '9행과 10행은 받은 객체를 그 자리에서 고칩니다. 타입 검사는 두 줄을 모두 지목했고, 콘솔 둘째 줄을 보면 그 결과가 보입니다. 관리자용 설정을 만들었을 뿐인데 **모두가 함께 쓰는 `defaults`까지** `dark`에 탭 3개로 바뀌었습니다.',
         },
         {
           kind: 'callout',
@@ -176,14 +176,14 @@ function forAdmin(settings: Settings): Settings {
 }
 
 const admin = forAdmin(defaults);
-console.log('admin:', admin.theme, admin.tabs.join(', '));
-console.log('defaults:', defaults.theme, defaults.tabs.join(', '));
+console.log('admin:', admin.theme, admin.tabs.join(', '), '(' + admin.tabs.length + '개)');
+console.log('defaults:', defaults.theme, defaults.tabs.join(', '), '(' + defaults.tabs.length + '개)');
 `,
       mission: {
         text: '`forAdmin`이 받은 객체를 고치지 않고 **새 객체**를 만들어 돌려주게 하세요. `admin`은 `dark`에 탭 3개, `defaults`는 `light`에 탭 2개 그대로여야 합니다.',
         goal: {
           noTypeErrors: true,
-          consoleIncludes: ['admin: dark home, my, admin', 'defaults: light home, my'],
+          consoleIncludes: ['admin: dark home, my, admin (3개)', 'defaults: light home, my (2개)'],
         },
         hint: "리듀서에서 하던 것처럼 스프레드로 복사합니다. `return { ...settings, theme: 'dark', tabs: [...settings.tabs, 'admin'] }`",
         answer: `interface Settings {
@@ -198,8 +198,8 @@ function forAdmin(settings: Settings): Settings {
 }
 
 const admin = forAdmin(defaults);
-console.log('admin:', admin.theme, admin.tabs.join(', '));
-console.log('defaults:', defaults.theme, defaults.tabs.join(', '));
+console.log('admin:', admin.theme, admin.tabs.join(', '), '(' + admin.tabs.length + '개)');
+console.log('defaults:', defaults.theme, defaults.tabs.join(', '), '(' + defaults.tabs.length + '개)');
 `,
       },
     },
@@ -258,7 +258,11 @@ console.log('p9 재고:', stockById['p9']);
 `,
       mission: {
         text: '(1) 20행과 22행의 속성 이름을 타입 선언에 맞게 고치고, (2) 23행에 `?? 0`을 붙여 없는 키의 기본값을 정하세요. 콘솔에 `총 수량: 3`, 우편번호 `04524`, `p9 재고: 0`이 찍히면 성공입니다. `item.` 뒤에서 자동완성을 열면 쓸 수 있는 이름이 보입니다.',
-        goal: { noTypeErrors: true, consoleIncludes: ['총 수량: 3', '배송지: 서울 04524', 'p9 재고: 0'] },
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['총 수량: 3', '배송지: 서울 04524', 'p9 재고: 0'],
+          codeIncludes: ['?? 0'],
+        },
         hint: "`Order`의 `items` 요소에는 `qty`가, `Address`에는 `zip`이 있습니다. 23행은 `stockById['p9'] ?? 0`",
         answer: `interface Address {
   city: string;
@@ -345,7 +349,11 @@ console.log(cartLine({ id: 'p1', title: '키보드', qty: 2 }));
 `,
       mission: {
         text: '값이 아니라 **타입 선언**을 고쳐서 오류 네 곳을 한 번에 없애세요. `Admin`은 `User`를 `extends`로, `CartItem`은 `Product`를 `&`로 확장합니다.',
-        goal: { noTypeErrors: true, consoleIncludes: ['김코딩 권한 2개', '키보드 x 2'] },
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['김코딩 권한 2개', '키보드 x 2'],
+          codeIncludes: ['extends User', '&'],
+        },
         hint: '`interface Admin extends User { ... }` 그리고 `type CartItem = Product & { qty: number };`',
         answer: `interface User {
   id: number;
@@ -422,6 +430,7 @@ sendMail(draft);
         goal: {
           noTypeErrors: true,
           consoleIncludes: ['kim@example.com', 'park@example.com', 'lee@example.com'],
+          codeIncludes: ['draft: User'],
         },
         hint: '`const draft: User = { ... }`로 바꾸면 `emial`에 빨간 줄이 생깁니다. 두 곳 모두 `email`로 고칩니다.',
         answer: `interface User {

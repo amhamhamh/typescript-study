@@ -21,7 +21,7 @@ export const lesson: Lesson = {
         },
         {
           kind: 'p',
-          text: '오른쪽 화면을 보세요. 왼쪽은 에디터, 오른쪽 위는 코드를 **실제로 실행한 결과(콘솔)**, 아래는 **타입 검사** 결과입니다. 코드를 고치면 둘 다 바로 갱신됩니다.',
+          text: '실습 화면을 보세요. **에디터**에 있는 코드를 **실제로 실행한 결과**는 `콘솔`에, **타입 검사** 결과는 `타입 검사` 영역에 나옵니다. 코드를 고치면 둘 다 바로 갱신됩니다.',
         },
         {
           kind: 'p',
@@ -147,8 +147,12 @@ console.log(formatPrice(12000, '₩'));
 console.log(formatPrice('공짜', '₩'));
 `,
       mission: {
-        text: '매개변수와 반환 타입을 붙이세요. 그러면 6행에 새 오류가 나타납니다. 그 호출을 숫자 `0`으로 고쳐 콘솔에 `₩0`이 찍히게 하세요.',
-        goal: { noTypeErrors: true, consoleIncludes: ['₩12,000', '₩0'] },
+        text: '매개변수에 `price: number`, `currency: string`을, 괄호 뒤에 반환 타입 `: string`을 붙이세요. 그러면 6행에 새 오류가 나타납니다. 그 호출을 숫자 `0`으로 고쳐 콘솔에 `₩0`이 찍히게 하세요.',
+        goal: {
+          noTypeErrors: true,
+          consoleIncludes: ['₩12,000', '₩0'],
+          codeIncludes: ['price: number', 'currency: string', '): string'],
+        },
         hint: '`price: number, currency: string` 그리고 괄호 뒤에 `: string`. 6행은 `formatPrice(0, \'₩\')`',
         answer: `function formatPrice(price: number, currency: string): string {
   return currency + price.toLocaleString();
@@ -197,8 +201,8 @@ const u: unknown = JSON.parse(json);
 console.log('unknown:', u.count + 1);
 `,
       mission: {
-        text: '(1) 오타가 난 5행을 지우고, (2) 8행을 조건문으로 감싸 `u`에 숫자 `count`가 있는지 확인한 뒤 출력하세요. 콘솔에 `unknown: 4`가 찍히면 성공입니다.',
-        goal: { noTypeErrors: true, consoleIncludes: ['any: 4', 'unknown: 4'] },
+        text: '(1) 오타가 난 5행을 지우고, (2) 7행의 `u: unknown`은 그대로 둔 채 8행을 조건문으로 감싸 `u`에 숫자 `count`가 있는지 확인한 뒤 출력하세요. 콘솔에 `unknown: 4`가 찍히면 성공입니다.',
+        goal: { noTypeErrors: true, consoleIncludes: ['any: 4', 'unknown: 4'], codeIncludes: ['u: unknown'] },
         hint: "`if (typeof u === 'object' && u !== null && 'count' in u && typeof u.count === 'number') { ... }`",
         answer: `const json = '{"count": 3}';
 
