@@ -26,8 +26,14 @@ export function App() {
 
   // 화면이 바뀌면 맨 위로 올리고, 메뉴를 닫습니다.
   const routeKey = route.name === 'lesson' ? `${route.lessonId}/${route.part}` : route.name;
+  // 처음 열린 화면에서는 스크롤을 건드리지 않습니다. 새로 고침(에디터의 '다시 시도' 포함) 때는
+  // 브라우저가 보던 위치로 되돌려 주는데, 여기서 맨 위로 올리면 보고 있던 에디터가 화면 밖으로 밀려납니다.
+  const shownRouteRef = useRef(routeKey);
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if (shownRouteRef.current !== routeKey) {
+      shownRouteRef.current = routeKey;
+      window.scrollTo(0, 0);
+    }
     setMenuOpen(false);
   }, [routeKey]);
 
@@ -52,6 +58,18 @@ export function App() {
   const lesson = route.name === 'lesson' ? findLesson(route.lessonId) : undefined;
   // 레슨 화면은 에디터에 자리를 내주기 위해 목차를 접어 둡니다. (메뉴 버튼으로 열기)
   const focus = route.name === 'lesson' && lesson !== undefined;
+
+  // 레슨이 아닌 화면에서는 960px 이하에서만 목차가 서랍입니다. (styles.css의 @media (max-width: 960px)와 같은 값)
+  // 창이 넓어져 서랍과 닫기 버튼이 사라지면 열림 상태도 함께 풉니다. 그러지 않으면 본문이 inert로 남아 아무것도 누를 수 없습니다.
+  useEffect(() => {
+    if (!menuOpen || focus) return;
+    const narrow = window.matchMedia('(max-width: 960px)');
+    const onChange = () => {
+      if (!narrow.matches) setMenuOpen(false);
+    };
+    narrow.addEventListener('change', onChange);
+    return () => narrow.removeEventListener('change', onChange);
+  }, [menuOpen, focus]);
 
   return (
     <div className={`app${focus ? ' app--focus' : ''}`}>

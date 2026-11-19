@@ -6,6 +6,7 @@ import TsWorker from 'monaco-editor/languages/features/typescript/ts.worker.js?w
 // 에디터 안의 가상 파일 시스템에 넣을 타입 선언 묶음입니다. (scripts/prebuild.ts 가 생성)
 // React, Redux Toolkit, react-redux의 실제 타입이 들어 있어 자동완성과 오류 메시지가 실제 프로젝트와 같습니다.
 import coreTypes from '../generated/types-core.json';
+import nativeTypesUrl from '../generated/types-native.json?url';
 
 self.MonacoEnvironment = {
   getWorker(_workerId: string, label: string) {
@@ -37,8 +38,14 @@ let nativeTypes: Promise<void> | null = null;
 
 /** React Native 타입은 용량이 커서, RN 예제가 처음 열릴 때 불러옵니다. */
 export function ensureNativeTypes(): Promise<void> {
-  nativeTypes ??= import('../generated/types-native.json')
-    .then((module) => addLibs(module.default))
+  // import()가 아니라 fetch로 받습니다. 한 번 실패한 동적 import는 브라우저가 기억해서 같은 페이지에서 다시 받을 수 없지만,
+  // fetch는 다음 RN 예제를 열 때 다시 요청할 수 있습니다.
+  nativeTypes ??= fetch(nativeTypesUrl)
+    .then((response) => {
+      if (!response.ok) throw new Error(`types-native ${response.status}`);
+      return response.json() as Promise<Record<string, string>>;
+    })
+    .then(addLibs)
     .catch((error: unknown) => {
       nativeTypes = null;
       throw error;
@@ -70,6 +77,10 @@ monaco.editor.defineTheme('tsl-dark', {
     'editorGutter.background': '#12161d',
   },
 });
+
+// 에디터의 우클릭 메뉴는 꺼 두었습니다(Workbench.tsx의 contextmenu: false). 그런데 Shift+F10은 Monaco가 여전히 가져가서
+// 아무 메뉴도 뜨지 않는 죽은 키가 됩니다. 단축키를 풀어서 우클릭과 똑같이 브라우저의 기본 메뉴가 뜨게 합니다.
+monaco.editor.addKeybindingRule({ keybinding: monaco.KeyMod.Shift | monaco.KeyCode.F10, command: null });
 
 export interface Diagnostic {
   line: number;

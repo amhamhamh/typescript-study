@@ -35,10 +35,12 @@ export interface Goal {
   previewIncludes?: string[];
   /**
    * 코드에 이 표현들이 모두 들어 있어야 함. 화면이나 콘솔로는 구분되지 않는 "어떻게 고쳤는가"를 확인합니다.
-   * 주석은 빼고, 띄어쓰기 차이는 무시하고 비교합니다. 예: 'Record<Status, string>', 'as const'
+   * 주석은 빼고, 띄어쓰기와 따옴표 종류(' " `)의 차이는 무시하고 비교합니다. 예: 'Record<Status, string>', 'as const'
+   * 표현의 양 끝은 단어나 연산자의 중간에 걸리지 않습니다. 'as User'는 `hasUser`에서, '&'는 `&&`에서 찾지 않습니다.
+   * 빈 문자열은 어떤 코드에서도 찾지 못하므로 적지 않습니다.
    */
   codeIncludes?: string[];
-  /** 코드에 이 표현들이 남아 있으면 안 됨. 예: 'as User', ': any' */
+  /** 코드에 이 표현들이 남아 있으면 안 됨. 비교 방법은 codeIncludes와 같습니다. 예: 'as User', ': any' */
   codeExcludes?: string[];
 }
 

@@ -27,6 +27,9 @@ const products = [
 
 const collections: Record<string, Array<{ id: number | string }>> = { users, posts, todos, products };
 
+// 학습자 코드가 window.setTimeout을 바꿔 끼워도 가짜 서버의 응답 지연은 원래 타이머로 잽니다.
+const nativeSetTimeout = window.setTimeout.bind(window);
+
 interface Reply {
   status: number;
   body: unknown;
@@ -58,7 +61,7 @@ export function installMockFetch(): void {
     }
     const reply = route(path);
     return new Promise((resolve) => {
-      setTimeout(() => {
+      nativeSetTimeout(() => {
         resolve(new Response(JSON.stringify(reply.body), { status: reply.status, headers: { 'Content-Type': 'application/json' } }));
       }, reply.delay);
     });

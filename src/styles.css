@@ -271,6 +271,7 @@ pre code { background: none; padding: 0; font-size: inherit; border-radius: 0; }
 .wb__live { display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; }
 .wb__live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
 .wb__live.is-running::before { background: var(--js); animation: pulse 0.9s infinite; }
+.wb__live.is-off::before { background: var(--muted); }
 @keyframes pulse { 50% { opacity: 0.25; } }
 
 .wb__monaco { flex: 1; min-height: 0; }
@@ -284,13 +285,16 @@ pre code { background: none; padding: 0; font-size: inherit; border-radius: 0; }
 .wb__pane--preview { flex: 1.5 1 0; border-bottom: 1px solid var(--line); }
 .wb__lower { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; }
 .wb__pane--console { flex: 1 1 0; min-height: 72px; }
-/* 타입 오류가 있으면 오류 목록이 주인공입니다. 미리보기가 자리를 조금 내줍니다. */
-.wb--preview .wb__output:has(.wb__types.has-errors) .wb__pane--preview { flex: 1 1 0; }
+/* 타입 오류가 있으면 오류 목록이 주인공입니다. 미리보기가 자리를 조금 내줍니다.
+   에디터와 결과가 나란히 놓일 때만 적용합니다. 세로로 쌓이는 배치(1040px 이하)에서는 미리보기 높이가 0이 되어 버립니다. */
+@media (min-width: 1041px) {
+  .wb--preview .wb__output:has(.wb__types.has-errors) .wb__pane--preview { flex: 1 1 0; }
+}
 .wb__output:focus { outline: none; }
 .wb__output:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .wb__hint { font-size: 0.72rem; color: var(--muted); display: none; }
 .wb__editor:focus-within .wb__hint { display: inline; }
-.wb__failed { display: grid; gap: 10px; justify-items: start; padding: 14px 16px; border-top: 1px solid var(--line); font-size: 0.88rem; color: var(--bad); }
+.wb__failed { display: grid; gap: 10px; justify-items: start; padding: 14px 16px; border-bottom: 1px solid var(--line); font-size: 0.88rem; color: var(--bad); }
 .wb__tabs { display: flex; gap: 2px; }
 .wb__panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 

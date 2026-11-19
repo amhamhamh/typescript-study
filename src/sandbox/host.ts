@@ -17,6 +17,25 @@ interface RunOptions {
 
 /** 이 시간 동안 iframe에서 아무 신호도 오지 않으면 스크립트가 멈춘 것으로 봅니다. */
 const SILENCE_MS = 5000;
+/**
+ * 신호는 계속 오는데(끝나지 않는 최상위 await 등) 실행을 넘긴 뒤 이 시간이 지나도록 끝나지 않으면,
+ * 더 기다리지 않고 지금까지의 결과를 반영합니다.
+ */
+const SETTLE_MS = 10000;
+/**
+ * 긴 동기 계산을 막 끝낸 iframe도 밀려 있던 "살아 있다" 신호부터 보내고, 완료 신호는 그 뒤(40ms쯤)에 보냅니다.
+ * 그래서 SETTLE_MS가 지난 뒤에 신호를 받고도 이만큼 더 기다립니다. 그래도 끝나지 않아야 await에서 기다리는 중입니다.
+ */
+const SETTLE_GRACE_MS = 300;
+/** 타이머가 이보다 늦게 실행됐다면, 같은 스레드를 쓰는 iframe이 그동안 동기 계산을 하고 있었던 것입니다. */
+const LATE_MS = 100;
+/**
+ * 멈춘 iframe을 지운 뒤에도 Chromium은 그 프로세스를 0.5초쯤 더 붙잡아 둡니다. 그 전에 만든 iframe은
+ * 멈춘 프로세스에 들어가 시작조차 못 하므로, 넉넉히 기다린 뒤 다시 실행합니다.
+ */
+const RESTART_DELAY_MS = 1200;
+/** 시작 신호가 오지 않을 때 자동으로 다시 실행해 보는 횟수. 기다리는 사이에 코드를 고쳐도 그 코드 탓으로 돌리지 않기 위해 두 번까지 봅니다. */
+const MAX_RETRIES = 2;
 const MAX_TEXT = 20000;
 const LEVELS: readonly string[] = ['log', 'info', 'warn', 'error'];
 
@@ -67,10 +86,13 @@ export class SandboxHost {
   private current: HTMLIFrameElement | null = null;
   private request: RunRequest | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private settleTimer: ReturnType<typeof setTimeout> | undefined;
+  /** 실행을 넘긴 지 SETTLE_MS가 지났는지. 그 뒤에 오는 "살아 있다" 신호를 보고 마무리합니다. */
+  private overdue = false;
   private restartTimer: ReturnType<typeof setTimeout> | undefined;
   /** 멈춘 프로세스를 정리한 뒤 다시 실행하기 위해 마지막 요청을 기억합니다. */
   private last: RunOptions | null = null;
-  private retried = false;
+  private retries = 0;
 
   constructor(
     private readonly container: HTMLElement,
@@ -131,7 +153,7 @@ export class SandboxHost {
 
   private onHang(): void {
     // 런타임이 시작 신호조차 못 보냈다면, 이번 코드가 아니라 이전 실행(예: 클릭 핸들러)이 프로세스를 붙잡고 있던 것입니다.
-    const blockedByEarlierRun = this.request !== null && !this.retried;
+    const blockedByEarlierRun = this.request !== null && this.retries < MAX_RETRIES;
     const mine = this.last;
     // 멈춘 스크립트는 iframe 하나를 지우는 것으로는 끝나지 않습니다. 모든 iframe을 지워 프로세스를 끝냅니다.
     for (const host of SandboxHost.hosts) host.removeFrames();
@@ -140,12 +162,12 @@ export class SandboxHost {
       if (host === this || !host.last) continue;
       const again = host.last;
       clearTimeout(host.restartTimer);
-      host.restartTimer = setTimeout(() => host.run(again), 300);
+      host.restartTimer = setTimeout(() => host.run(again), RESTART_DELAY_MS);
     }
 
     if (blockedByEarlierRun && mine) {
-      this.retried = true;
-      this.restartTimer = setTimeout(() => this.run(mine), 300);
+      this.retries += 1;
+      this.restartTimer = setTimeout(() => this.run(mine), RESTART_DELAY_MS);
       return;
     }
     this.last = null;
@@ -166,8 +188,36 @@ export class SandboxHost {
 
   private discardPending(): void {
     clearTimeout(this.timer);
+    clearTimeout(this.settleTimer);
+    this.overdue = false;
     this.pending?.remove();
     this.pending = null;
+  }
+
+  /** 준비된 새 화면을 이전 화면과 바꿔 끼웁니다. */
+  private reveal(frame: HTMLIFrameElement): void {
+    clearTimeout(this.timer);
+    clearTimeout(this.settleTimer);
+    this.overdue = false;
+    this.visible?.remove();
+    this.visible = frame;
+    this.pending = null;
+    frame.classList.remove('is-pending');
+  }
+
+  /**
+   * iframe은 살아 있는데 최상위 코드가 끝나지 않는 경우입니다. 이유를 알리고 지금까지의 결과로 마무리합니다.
+   * iframe은 그대로 두므로 뒤늦게 오는 출력과 진짜 완료 신호도 그대로 반영됩니다.
+   */
+  private settle(frame: HTMLIFrameElement): void {
+    if (this.pending !== frame) return;
+    this.emit({
+      type: 'log',
+      level: 'warn',
+      text: `${SETTLE_MS / 1000}초가 지나도 끝나지 않은 await가 있습니다. 지금까지의 결과를 먼저 보여 드립니다. Promise의 resolve()가 호출되는지 확인해 보세요.`,
+    });
+    this.reveal(frame);
+    this.emit({ type: 'done', rendered: false });
   }
 
   private onMessage = (event: MessageEvent): void => {
@@ -179,11 +229,28 @@ export class SandboxHost {
 
     switch (message.type) {
       case 'ready':
-        this.retried = false;
-        if (this.request) frame.contentWindow?.postMessage(this.request, '*');
+        this.retries = 0;
+        if (this.request) {
+          frame.contentWindow?.postMessage(this.request, '*');
+          clearTimeout(this.settleTimer);
+          this.overdue = false;
+          this.settleTimer = setTimeout(() => {
+            if (this.pending === frame) this.overdue = true;
+          }, SETTLE_MS);
+        }
         this.request = null;
         break;
       case 'alive':
+        // 시간이 지났다고 바로 마무리하지 않습니다. 그 순간 iframe이 동기 계산 중이었는지(곧 스스로 끝남),
+        // await에서 쉬고 있었는지는 그 뒤에 오는 신호로만 알 수 있습니다. 신호는 iframe이 쉬고 있을 때만 옵니다.
+        if (this.overdue && this.pending === frame) {
+          clearTimeout(this.settleTimer);
+          const dueAt = Date.now() + SETTLE_GRACE_MS;
+          this.settleTimer = setTimeout(() => {
+            // 기다리는 사이에 다시 계산을 시작했다면(타이머가 밀림) 마무리하지 않고 다음 신호에서 다시 봅니다.
+            if (Date.now() - dueAt < LATE_MS) this.settle(frame);
+          }, SETTLE_GRACE_MS);
+        }
         break;
       case 'log':
         this.emit(message);
@@ -192,13 +259,7 @@ export class SandboxHost {
         this.emit(message);
         break;
       case 'done':
-        if (this.pending === frame) {
-          clearTimeout(this.timer);
-          this.visible?.remove();
-          this.visible = frame;
-          this.pending = null;
-          frame.classList.remove('is-pending');
-        }
+        if (this.pending === frame) this.reveal(frame);
         this.emit(message);
         break;
     }

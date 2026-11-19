@@ -18,6 +18,14 @@ import { CHANNEL, LOOP_GUARD, type FromSandbox, type LogLevel, type RunRequest, 
 
 const SOURCE_NAME = 'example.tsx';
 
+// 학습자 코드가 window.setTimeout 같은 전역을 바꿔 끼울 수 있습니다(가짜 타이머, 디바운스 실습 등).
+// 런타임이 스스로 쓰는 타이머와 시계는 코드를 실행하기 전에 원래 것을 잡아 둡니다.
+const nativeSetTimeout = window.setTimeout.bind(window);
+const nativeClearTimeout = window.clearTimeout.bind(window);
+const nativeSetInterval = window.setInterval.bind(window);
+const nativeClearInterval = window.clearInterval.bind(window);
+const nativeNow = performance.now.bind(performance);
+
 function post(message: FromSandbox): void {
   window.parent.postMessage({ [CHANNEL]: true, ...message }, '*');
 }
@@ -43,16 +51,31 @@ function measureLineOffset(): number {
 }
 const lineOffset = measureLineOffset();
 
+/** 취소된 Proxy(또는 getPrototypeOf 트랩이 던지는 Proxy)는 instanceof 검사만으로도 예외가 납니다. */
+function isError(value: unknown): value is Error {
+  try {
+    return value instanceof Error;
+  } catch {
+    return false;
+  }
+}
+
 function lineOf(error: unknown): number | null {
-  if (!(error instanceof Error) || !error.stack) return null;
-  const match = error.stack.match(new RegExp(`${SOURCE_NAME.replace('.', '\\.')}:(\\d+)`));
-  if (!match) return null;
-  const line = Number(match[1]) - lineOffset;
-  return line > 0 ? line : null;
+  try {
+    if (!isError(error) || !error.stack) return null;
+    const match = error.stack.match(new RegExp(`${SOURCE_NAME.replace('.', '\\.')}:(\\d+)`));
+    if (!match) return null;
+    const line = Number(match[1]) - lineOffset;
+    return line > 0 ? line : null;
+  } catch {
+    // stack을 읽는 것만으로 예외가 나는 값(get 트랩이 던지는 Proxy, 던지는 getter)은 줄 번호 없이 보여 줍니다.
+    return null;
+  }
 }
 
 function describe(error: unknown): string {
-  const text = error instanceof Error ? `${error.name}: ${error.message}` : `Uncaught ${formatArgs([error])}`;
+  // 오류는 "이름: 메시지" 뒤에 cause나 직접 붙인 필드(code, status …)까지 보여 줍니다.
+  const text = isError(error) ? formatArgs([error]) : `Uncaught ${formatArgs([error])}`;
   const line = lineOf(error);
   return line ? `${text}  (${line}행)` : text;
 }
@@ -75,11 +98,45 @@ function patchConsole(): void {
         text = '[출력할 수 없는 값]';
       }
       // console.error(error)로 넘어온 오류에도 줄 번호를 붙여 줍니다.
-      if (args.length === 1 && args[0] instanceof Error) text = describe(args[0]);
+      if (args.length === 1 && isError(args[0])) text = describe(args[0]);
       if (!IGNORED.some((pattern) => pattern.test(text))) log(level, text);
     };
   }
   target.table = (...args: unknown[]) => target.log?.(...args);
+
+  // 아래 메서드들도 콘솔 패널에 한 줄씩 남깁니다. 위에서 바꾼 log/warn/error를 거치므로 형식과 필터가 같습니다.
+  target.dir = (value: unknown) => target.log?.(value);
+  target.dirxml = (...args: unknown[]) => target.log?.(...args);
+  target.trace = (...args: unknown[]) =>
+    typeof args[0] === 'string' ? target.log?.(`Trace: ${args[0]}`, ...args.slice(1)) : target.log?.('Trace', ...args);
+  target.assert = (condition?: unknown, ...args: unknown[]) => {
+    if (condition) return;
+    if (typeof args[0] === 'string') target.error?.(`Assertion failed: ${args[0]}`, ...args.slice(1));
+    else target.error?.('Assertion failed', ...args);
+  };
+  // 묶음의 들여쓰기는 흉내 내지 않고 제목만 보여 줍니다.
+  target.group = target.groupCollapsed = (...args: unknown[]) => {
+    if (args.length > 0) target.log?.(...args);
+  };
+  const counts = new Map<string, number>();
+  target.count = (label: unknown = 'default') => {
+    const key = String(label);
+    const next = (counts.get(key) ?? 0) + 1;
+    counts.set(key, next);
+    target.log?.(`${key}: ${next}`);
+  };
+  target.countReset = (label: unknown = 'default') => void counts.delete(String(label));
+  const timers = new Map<string, number>();
+  const elapsed = (label: unknown, rest: unknown[], stop: boolean): void => {
+    const key = String(label);
+    const startedAt = timers.get(key);
+    if (startedAt === undefined) return void target.warn?.(`Timer '${key}' does not exist`);
+    if (stop) timers.delete(key);
+    target.log?.(`${key}: ${(nativeNow() - startedAt).toFixed(1)}ms`, ...rest);
+  };
+  target.time = (label: unknown = 'default') => void timers.set(String(label), nativeNow());
+  target.timeLog = (label: unknown = 'default', ...rest: unknown[]) => elapsed(label, rest, false);
+  target.timeEnd = (label: unknown = 'default') => elapsed(label, [], true);
 }
 
 function patchGlobals(): void {
@@ -141,25 +198,57 @@ function patchLocale(): void {
     };
   };
   pin(Number.prototype, 'toLocaleString');
+  if (typeof BigInt === 'function') pin(BigInt.prototype, 'toLocaleString');
   for (const method of ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString']) pin(Date.prototype, method);
 
-  const intl = Intl as unknown as Record<string, new (locales?: unknown, options?: unknown) => object>;
-  for (const name of ['NumberFormat', 'DateTimeFormat']) {
+  const intl = Intl as unknown as Record<string, new (...args: unknown[]) => object>;
+  const withLocale = (args: unknown[]): unknown[] => [args[0] ?? LOCALE, ...args.slice(1)];
+  // `new` 없이 불러도 되는 생성자들. 나머지는 원래대로 TypeError가 나야 합니다.
+  const CALLABLE = new Set(['NumberFormat', 'DateTimeFormat', 'Collator']);
+  const names = ['NumberFormat', 'DateTimeFormat', 'RelativeTimeFormat', 'ListFormat', 'PluralRules', 'Collator', 'DisplayNames', 'Segmenter', 'DurationFormat'];
+  for (const name of names) {
     const Original = intl[name];
     if (typeof Original !== 'function') continue;
-    intl[name] = new Proxy(Original, {
-      construct: (target, args: unknown[]) => new target(args[0] ?? LOCALE, args[1]),
-      apply: (target, _self, args: unknown[]) => new target(args[0] ?? LOCALE, args[1]),
+    const proxy = new Proxy(Original, {
+      // newTarget을 그대로 넘겨야 `class Won extends Intl.NumberFormat`의 인스턴스가 Won의 메서드를 가집니다.
+      construct: (target, args: unknown[], newTarget) => Reflect.construct(target, withLocale(args), newTarget),
+      apply: (target, self, args: unknown[]) =>
+        CALLABLE.has(name) ? new target(...withLocale(args)) : (Reflect.apply(target, self, args) as object),
     });
+    try {
+      // `new Intl.NumberFormat().constructor === Intl.NumberFormat`이 그대로 성립하게 합니다.
+      Object.defineProperty(Original.prototype, 'constructor', { value: proxy, writable: true, configurable: true });
+    } catch {
+      // 재정의할 수 없는 환경이면 그대로 둡니다.
+    }
+    intl[name] = proxy;
   }
 }
 
 // ── 끝나지 않는 반복문 막기 ──────────────────────────────
-// compile.ts 가 모든 반복문 본문 첫머리에 이 함수의 호출을 넣어 둡니다.
+// compile.ts 가 모든 반복문 본문 첫머리에 이 함수의 호출을 넣어 둡니다. 인자는 반복문마다 다른 번호입니다.
 
 const LOOP_BUDGET_MS = 2000;
-let loopTicks = 0;
-let sliceStartedAt = 0;
+/**
+ * 시계를 읽는 간격의 상한. 본문이 가벼운 반복문에서는 이만큼의 반복마다 한 번만 읽습니다.
+ * 가볍게 돌던 본문이 갑자기 무거워지면 다음에 시계를 읽을 때까지(최대 15번의 반복) 알아채지 못하므로 크게 잡지 않습니다.
+ * (16이면 반복 한 번에 8ns쯤 듭니다. 64는 4ns쯤이지만 본문이 70ms로 바뀐 반복문을 4초 넘게 놓칩니다.)
+ */
+const MAX_STRIDE = 16;
+
+interface LoopSite {
+  /** 이번 동기 구간에서 이 반복문의 시간을 재기 시작한 시각 */
+  startedAt: number;
+  lastCheckAt: number;
+  /** 시계를 몇 번째 반복마다 읽을지 */
+  stride: number;
+  untilCheck: number;
+  /** 예산 내내 돌지 않다가 다시 돈 것을 이미 한 번 봐줬는지 */
+  resumed: boolean;
+}
+
+/** 반복문 번호 → 이번 동기 구간에서의 상태. 구간이 끝나면 비웁니다. */
+const loopSites = new Map<unknown, LoopSite>();
 let inSlice = false;
 let tripped = false;
 
@@ -169,25 +258,55 @@ function loopError(): Error {
   return error;
 }
 
-function loopGuard(): void {
+function endSlice(): void {
+  inSlice = false;
+  tripped = false;
+  loopSites.clear();
+}
+
+/**
+ * 반복문이 끝났는지는 알 수 없고, 같은 번호의 반복문이 또 돌았다는 것만 보입니다. 그래서 2초 넘게 조용하다가
+ * 다시 돈 반복문은 어림으로 다룹니다.
+ *  - 짧은 반복문이 2초 넘게 걸린 다른 계산의 앞뒤로 불린 경우: 한 번은 봐주고, 같은 일이 또 생기면 중단합니다.
+ *  - 반복 한 번이 2초 넘게 걸리는 반복문: 위와 구별되지 않아, 두 번째가 아니라 세 번째 반복에서 중단합니다.
+ *  - 가볍게 돌다가 본문이 무거워져 시계를 읽지 못한 사이에 2초가 지난 반복문: 마찬가지로 2초를 더 돈 뒤에 중단합니다.
+ */
+function loopGuard(site?: unknown): void {
   // 한 번 걸리면 같은 동기 구간 안에서는 계속 던져서, 바깥 반복문이 try/catch로 삼켜도 빠져나오게 합니다.
   if (tripped) throw loopError();
-  if (++loopTicks % 64 !== 0) return;
-  const now = performance.now();
-  if (!inSlice) {
-    // 타이머 콜백은 동기 코드가 끝나야 실행됩니다. 즉 이 플래그가 켜져 있는 동안은 "한 번도 쉬지 않고" 돌았다는 뜻입니다.
-    inSlice = true;
-    sliceStartedAt = now;
-    setTimeout(() => {
-      inSlice = false;
-      tripped = false;
-    }, 0);
+  const state = loopSites.get(site);
+  if (state === undefined) {
+    // 시간은 반복문마다 따로 잽니다. 반복문 앞에서 오래 걸린 다른 계산이 이 반복문 탓이 되지 않습니다.
+    const now = nativeNow();
+    loopSites.set(site, { startedAt: now, lastCheckAt: now, stride: 1, untilCheck: 1, resumed: false });
+    if (!inSlice) {
+      // 타이머 콜백은 동기 코드가 끝나야 실행됩니다. 즉 이 플래그가 켜져 있는 동안은 "한 번도 쉬지 않고" 돌았다는 뜻입니다.
+      // (마이크로태스크로 바꾸면 안 됩니다. `while (true) { await Promise.resolve(); }`도 쉬지 않는 반복입니다.)
+      inSlice = true;
+      nativeSetTimeout(endSlice, 0);
+    }
     return;
   }
-  if (now - sliceStartedAt > LOOP_BUDGET_MS) {
+  if (--state.untilCheck > 0) return;
+  const now = nativeNow();
+  const gap = now - state.lastCheckAt;
+  if (now - state.startedAt > LOOP_BUDGET_MS) {
+    // 예산 내내 이 반복문에서 시계를 한 번도 읽지 않았다면 2초 동안 돈 것이 아닐 수 있습니다. 합계를 구하는 함수의 짧은
+    // 반복문이 오래 걸린 다른 계산의 앞뒤로 두 번 불린 경우가 그렇습니다. 한 번은 시간을 처음부터 다시 잽니다.
+    if (!state.resumed && gap > LOOP_BUDGET_MS) {
+      state.resumed = true;
+      state.startedAt = state.lastCheckAt = now;
+      state.stride = state.untilCheck = 1;
+      return;
+    }
     tripped = true;
     throw loopError();
   }
+  // 본문이 느리면(지난 간격이 1ms 이상) 매 반복마다, 빠르면 점점 드물게 시계를 읽습니다.
+  // 매번 읽으면 가벼운 반복문이 몇 배 느려지고, 고정 간격으로 읽으면 본문이 무거운 반복문을 2초에 멈추지 못합니다.
+  state.stride = gap >= 1 ? 1 : Math.min(state.stride * 2, MAX_STRIDE);
+  state.untilCheck = state.stride;
+  state.lastCheckAt = now;
 }
 
 // ── 모듈 ─────────────────────────────────────────────────
@@ -250,11 +369,11 @@ class Boundary extends React.Component<{ children: React.ReactNode }, BoundarySt
 }
 
 function watchDom(root: HTMLElement): void {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timer: number | undefined;
   const report = () => post({ type: 'dom', text: (root.innerText || root.textContent || '').slice(0, 4000) });
   new MutationObserver(() => {
-    clearTimeout(timer);
-    timer = setTimeout(report, 80);
+    nativeClearTimeout(timer);
+    timer = nativeSetTimeout(report, 80);
   }).observe(root, { childList: true, subtree: true, characterData: true, attributes: true });
 }
 
@@ -293,14 +412,16 @@ async function run(request: RunRequest): Promise<void> {
   const module: { exports: Record<string, unknown> } = { exports: {} };
   let rendered = false;
   // 최상위 await가 오래 걸려도 "멈춘 것"으로 오해받지 않도록, 살아 있다는 신호를 주기적으로 보냅니다.
-  const heartbeat = setInterval(() => post({ type: 'alive' }), 1000);
+  const heartbeat = nativeSetInterval(() => post({ type: 'alive' }), 1000);
   try {
     const execute = new AsyncFunction(
       'require',
       'module',
       'exports',
       LOOP_GUARD,
-      `${request.code}\n//# sourceURL=${SOURCE_NAME}`,
+      // 블록으로 감싸 학습자의 const/let/class 가 주입한 매개변수 이름(require, module, exports)을 가릴 수 있게 합니다.
+      // 줄바꿈을 앞에 추가하지 않으므로 줄 번호는 그대로이고, "use strict" 는 블록 밖에 다시 적어 엄격 모드를 유지합니다.
+      `"use strict";{${request.code}\n}\n//# sourceURL=${SOURCE_NAME}`,
     );
     await execute(requireModule, module, module.exports, loopGuard);
     rendered = mount(module.exports.default, request.runner);
@@ -308,8 +429,8 @@ async function run(request: RunRequest): Promise<void> {
     log('error', describe(error), true);
   }
   // 첫 렌더링과 useEffect가 끝난 뒤에 "완료"를 알립니다.
-  setTimeout(() => {
-    clearInterval(heartbeat);
+  nativeSetTimeout(() => {
+    nativeClearInterval(heartbeat);
     post({ type: 'done', rendered });
   }, 40);
 }

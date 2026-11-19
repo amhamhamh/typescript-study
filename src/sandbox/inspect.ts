@@ -51,9 +51,55 @@ function format(value: unknown, depth: number, indent: string, seen: Set<object>
   }
 }
 
-/** React 내부 구현용 속성. 찍어 봐야 수천 줄의 잡음이라 건너뜁니다. */
-const INTERNAL_KEY = /^(_react|__react|_targetInst$|_owner$|_store$|_debug)/;
+/**
+ * React 내부 구현용 속성. 찍어 봐야 수천 줄의 잡음이라 건너뜁니다.
+ * React만 만드는 이름으로 좁혀 둡니다. `_store`, `_owner`처럼 학습자가 쓸 법한 이름까지 숨기면 안 됩니다.
+ */
+const INTERNAL_KEY = /^(_reactName$|_reactInternals$|_reactInternalInstance$|_targetInst$|__react[A-Z][A-Za-z]*\$)/;
 const MAX_KEYS = 60;
+
+/** "이름: 메시지"에 이미 들어 있거나 따로 보여 주는 속성 */
+const ERROR_BUILTIN_KEYS = new Set(['name', 'message', 'stack', 'cause', 'errors']);
+
+/** 첫머리는 항상 "이름: 메시지"이고, 직접 붙인 필드(code, status …)·errors·cause가 있으면 그 뒤에 덧붙입니다. */
+function formatError(error: Error, depth: number, indent: string, seen: Set<object>): string {
+  const head = `${error.name}: ${error.message}`;
+  if (seen.has(error) || depth > MAX_DEPTH) return head;
+  seen.add(error);
+  try {
+    const fields = error as unknown as Record<string, unknown>;
+    const inner = `${indent}  `;
+    // 덧붙이는 필드 하나를 읽지 못해도(예외를 던지는 getter) 첫머리와 나머지 필드는 그대로 보여 줍니다.
+    const peek = (key: string): unknown => {
+      try {
+        return fields[key];
+      } catch {
+        return undefined;
+      }
+    };
+    const read = (key: string): string => {
+      try {
+        return format(fields[key], depth + 1, inner, seen);
+      } catch {
+        return '[읽을 수 없는 값]';
+      }
+    };
+    // errors는 배열일 때만(AggregateError) 따로 보여 줍니다. 직접 붙인 객체라면 다른 필드처럼 보여 줍니다.
+    const hasErrorList = Array.isArray(peek('errors'));
+    const items = Object.keys(error)
+      .filter((key) => !ERROR_BUILTIN_KEYS.has(key) || (key === 'errors' && !hasErrorList))
+      .slice(0, MAX_KEYS)
+      .map((key) => `${key}: ${read(key)}`);
+    if (hasErrorList) items.push(`[errors]: ${read('errors')}`);
+    if (peek('cause') !== undefined) items.push(`[cause]: ${read('cause')}`);
+    return items.length === 0 ? head : `${head} ${wrap('{', items, '}', indent)}`;
+  } catch {
+    // 필드 목록조차 읽을 수 없는 값(ownKeys 트랩이 던지는 Proxy)은 첫머리만 보여 줍니다.
+    return head;
+  } finally {
+    seen.delete(error);
+  }
+}
 
 function isWindow(object: object): boolean {
   return object === globalThis || Object.prototype.toString.call(object) === '[object Window]';
@@ -61,7 +107,7 @@ function isWindow(object: object): boolean {
 
 function formatObject(object: object, depth: number, indent: string, seen: Set<object>): string {
   if (isWindow(object)) return '[Window]';
-  if (object instanceof Error) return `${object.name}: ${object.message}`;
+  if (object instanceof Error) return formatError(object, depth, indent, seen);
   if (object instanceof Date) return Number.isNaN(object.getTime()) ? 'Invalid Date' : object.toISOString();
   if (object instanceof RegExp) return object.toString();
   if (object instanceof Promise) return 'Promise { … }';
@@ -75,7 +121,10 @@ function formatObject(object: object, depth: number, indent: string, seen: Set<o
   }
   // 이벤트 객체(브라우저 Event, React의 합성 이벤트)는 핵심만 보여 줍니다.
   const isDomEvent = typeof Event !== 'undefined' && object instanceof Event;
-  if (isDomEvent || ('nativeEvent' in object && 'currentTarget' in object && 'type' in object)) {
+  // 합성 이벤트인지는 preventDefault 메서드까지 확인합니다. 키 이름만 같은 평범한 객체는 그대로 펼쳐 보여야 합니다.
+  const isSyntheticEvent =
+    'nativeEvent' in object && 'type' in object && typeof (object as { preventDefault?: unknown }).preventDefault === 'function';
+  if (isDomEvent || isSyntheticEvent) {
     const event = object as { type?: unknown; target?: unknown };
     const label = isDomEvent ? nameOf(object) : 'SyntheticEvent';
     return `${label} { type: ${format(event.type, depth + 1, indent, seen)}, target: ${format(event.target, depth + 1, indent, seen)} }`;
