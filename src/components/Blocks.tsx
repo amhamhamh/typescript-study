@@ -1,6 +1,5 @@
 import type { Block } from '../content/types';
 import { CodeBlock } from './CodeBlock';
-import { Playground } from './Playground';
 import { RichText } from './RichText';
 
 const calloutLabel = { tip: '팁', warn: '주의', bridge: '내 경험과 연결' } as const;
@@ -10,8 +9,6 @@ export function BlockView({ block }: { block: Block }) {
   switch (block.kind) {
     case 'p':
       return <p><RichText text={block.text} /></p>;
-    case 'h':
-      return <h2>{block.text}</h2>;
     case 'list':
       return (
         <ul className="list">
@@ -39,13 +36,6 @@ export function BlockView({ block }: { block: Block }) {
           <p className="callout__title">{block.title}</p>
           <p><RichText text={block.text} /></p>
         </aside>
-      );
-    case 'playground':
-      return (
-        <figure className="pg-figure">
-          <Playground id={block.id} code={block.code} jsx={block.jsx} />
-          {block.caption && <figcaption><RichText text={block.caption} /></figcaption>}
-        </figure>
       );
     default: {
       // 새 블록 종류를 추가하고 여기서 처리하지 않으면 컴파일 오류가 납니다. (레슨 9)

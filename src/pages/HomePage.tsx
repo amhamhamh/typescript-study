@@ -1,38 +1,50 @@
 import { chapters, lessons, lessonsOf } from '../content';
-import { href } from '../lib/router';
+import { href, lessonHref } from '../lib/router';
 import { selectDoneCount, selectLessonProgress, useAppDispatch, useAppSelector } from '../store';
 import { progressReset } from '../store/progressSlice';
-import { CodeBlock } from '../components/CodeBlock';
+import { Workbench } from '../components/Workbench';
 import { ArrowRight, CheckIcon } from '../components/Icons';
 
-const heroJs = `function Profile({ user, onFollow }) {
-  return (
-    <Button onPress={() => onFollow(user.id)}>
-      {user.nickname.toUpperCase()}
-    </Button>
-  );
-}
-// nickname이 없는 유저 → 배포 후 크래시`;
+// 첫 화면에서 바로 만져 볼 수 있는 예제. 일부러 타입 오류 하나를 넣어 두었습니다.
+const demoCode = `import { useState } from 'react';
 
-const heroTs = `interface Props {
-  user: { id: number; nickname?: string };
-  onFollow: (id: number) => void;
+interface LikeButtonProps {
+  label: string;
+  initial?: number;
 }
 
-function Profile({ user, onFollow }: Props) {
+function LikeButton({ label, initial = 0 }: LikeButtonProps) {
+  const [count, setCount] = useState(initial);
   return (
-    <Button onPress={() => onFollow(user.id)}>
-      {user.nickname.toUpperCase()}
-    </Button> // ↑ 작성 중에 빨간 줄: undefined일 수 있음
+    <button className="primary" onClick={() => setCount(count + 1)}>
+      {label} {count}
+    </button>
   );
-}`;
+}
+
+export default function App() {
+  return (
+    <div className="stack">
+      <h3>버튼을 눌러 보세요</h3>
+      <div className="row">
+        <LikeButton label="좋아요" />
+        <LikeButton label="응원해요" initial="10" />
+      </div>
+      <p className="muted">"응원해요"는 11이 아니라 101이 됩니다.</p>
+    </div>
+  );
+}
+`;
 
 export function HomePage() {
   const dispatch = useAppDispatch();
   const state = useAppSelector((s) => s);
   const doneCount = selectDoneCount(state);
   const nextLesson = lessons.find((lesson) => !selectLessonProgress(state, lesson).done) ?? lessons[0];
-  const started = doneCount > 0 || Object.keys(state.progress.quiz).length > 0 || Object.keys(state.progress.exercises).length > 0;
+  const { exercises, missions, quiz } = state.progress;
+  const started = [exercises, missions, quiz].some((record) => Object.keys(record).length > 0);
+  const stepCount = lessons.reduce((sum, lesson) => sum + lesson.steps.length, 0);
+  const missionCount = lessons.reduce((sum, lesson) => sum + lesson.steps.filter((step) => step.mission).length, 0);
 
   const reset = () => {
     if (window.confirm('학습 기록을 모두 지울까요?')) dispatch(progressReset());
@@ -43,25 +55,36 @@ export function HomePage() {
       <section className="hero">
         <p className="eyebrow">React · React Native · Redux 경험자를 위한</p>
         <h1>
-          아는 것에서 출발하는<br />TypeScript
+          고치면 바로 보이는<br />TypeScript 실습
         </h1>
         <p className="hero__lead">
-          변수와 반복문부터 다시 배우지 않습니다. PropTypes, <code>useState</code>, 리듀서, <code>navigation.navigate</code>처럼
-          이미 손에 익은 코드가 TypeScript에서 어떻게 달라지는지를 브라우저에서 직접 고쳐 보며 익힙니다.
+          읽기만 하는 강의가 아닙니다. 왼쪽 에디터에서 코드를 고치면 오른쪽 <strong>미리보기와 콘솔</strong>이 즉시 바뀌고,
+          타입 검사가 어느 줄이 왜 위험한지 알려 줍니다. PropTypes, <code>useState</code>, 리듀서, <code>navigation.navigate</code>처럼
+          이미 손에 익은 코드에서 출발합니다.
         </p>
         <div className="hero__actions">
-          <a className="btn btn--primary btn--lg" href={href({ name: 'lesson', lessonId: nextLesson.id })}>
-            {started ? '이어서 학습하기' : '첫 레슨 시작하기'} <ArrowRight />
-          </a>
+          {nextLesson && (
+            <a className="btn btn--primary btn--lg" href={lessonHref(nextLesson.id)}>
+              {started ? '이어서 학습하기' : '첫 레슨 시작하기'} <ArrowRight />
+            </a>
+          )}
           <span className="hero__meta">
-            레슨 {lessons.length}개 · 약 {lessons.reduce((sum, lesson) => sum + lesson.minutes, 0)}분 · 설치 없음
+            레슨 {lessons.length}개 · 실습 단계 {stepCount}개 · 미션 {missionCount}개 · 설치 없음
           </span>
         </div>
       </section>
 
-      <section className="hero-compare" aria-label="JavaScript와 TypeScript 비교">
-        <CodeBlock code={heroJs} lang="jsx" title="지금까지 — JavaScript" tone="js" />
-        <CodeBlock code={heroTs} lang="tsx" title="앞으로 — TypeScript" tone="ts" />
+      <section className="demo" aria-labelledby="demo-title">
+        <div className="demo__head">
+          <h2 id="demo-title">지금 바로 고쳐 보세요</h2>
+          <p>
+            23행의 <code>initial="10"</code>은 숫자 자리에 문자열을 넣은 버그입니다. 타입 검사는 이미 알고 있고, 미리보기에서 버튼을 눌러 보면
+            실제로 어떻게 망가지는지 보입니다. <code>{'initial={10}'}</code>으로 고치면 둘 다 해결됩니다.
+          </p>
+        </div>
+        <div className="demo__bench">
+          <Workbench id="home-demo" code={demoCode} runner="react" />
+        </div>
       </section>
 
       <section className="map" aria-labelledby="map-title">
@@ -92,12 +115,15 @@ export function HomePage() {
                   const progress = selectLessonProgress(state, lesson);
                   return (
                     <li key={lesson.id}>
-                      <a className="lesson-row" href={href({ name: 'lesson', lessonId: lesson.id })}>
+                      <a className="lesson-row" href={lessonHref(lesson.id)}>
                         <span className={`lesson-row__mark${progress.done ? ' is-done' : ''}`}>
                           {progress.done ? <CheckIcon width={12} height={12} /> : lessons.indexOf(lesson) + 1}
                         </span>
                         <span className="lesson-row__title">{lesson.title}</span>
-                        <span className="lesson-row__time">{lesson.minutes}분</span>
+                        <span className="lesson-row__time">
+                          {progress.missionsTotal > 0 && `미션 ${progress.missionsDone}/${progress.missionsTotal} · `}
+                          {lesson.minutes}분
+                        </span>
                       </a>
                     </li>
                   );
@@ -109,21 +135,24 @@ export function HomePage() {
       </section>
 
       <section className="how">
-        <h2>이렇게 진행됩니다</h2>
+        <h2>레슨은 이렇게 진행됩니다</h2>
         <ol className="how__steps">
           <li>
-            <strong>비교해서 읽기</strong>
-            <span>같은 코드를 JS와 TS로 나란히 봅니다. 달라지는 부분만 눈에 들어옵니다.</span>
+            <strong>짧게 읽고</strong>
+            <span>한 단계에 개념 하나. 익숙한 JS 코드와 나란히 놓고 달라지는 부분만 봅니다.</span>
           </li>
           <li>
-            <strong>에디터에서 고치기</strong>
-            <span>VS Code와 같은 엔진이 브라우저에서 실제 타입 검사를 합니다. 자동완성과 오류 메시지도 동일합니다.</span>
+            <strong>바로 고쳐 보고</strong>
+            <span>단계마다 미션이 있습니다. 에디터에서 고치면 콘솔·미리보기·타입 검사가 즉시 반응하고, 목표를 달성하면 자동으로 체크됩니다.</span>
           </li>
           <li>
-            <strong>실습과 퀴즈로 확인</strong>
-            <span>레슨마다 실습 1개, 퀴즈 2개. 진도는 이 브라우저에 저장됩니다.</span>
+            <strong>과제로 확인</strong>
+            <span>레슨 끝의 실습 과제와 퀴즈로 마무리합니다. 진도는 이 브라우저에 저장됩니다.</span>
           </li>
         </ol>
+        <p className="how__link">
+          빠르게 찾아볼 때는 <a href={href({ name: 'cheatsheet' })}>JS → TS 치트시트</a>를 이용하세요.
+        </p>
       </section>
     </div>
   );

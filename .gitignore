@@ -1,5 +1,6 @@
 node_modules
 dist
-.tmp-lessons
+.tmp-lessons*
+src/generated
 *.log
 .DS_Store

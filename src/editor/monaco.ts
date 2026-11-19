@@ -3,11 +3,9 @@ import * as monaco from 'monaco-editor';
 import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker';
 import TsWorker from 'monaco-editor/languages/features/typescript/ts.worker.js?worker';
 
-// React 타입 선언을 에디터 안의 가상 파일 시스템에 넣어, JSX와 훅의 타입 검사가 실제처럼 동작하게 합니다.
-import reactIndex from '../../node_modules/@types/react/index.d.ts?raw';
-import reactGlobal from '../../node_modules/@types/react/global.d.ts?raw';
-import reactJsxRuntime from '../../node_modules/@types/react/jsx-runtime.d.ts?raw';
-import csstype from '../../node_modules/csstype/index.d.ts?raw';
+// 에디터 안의 가상 파일 시스템에 넣을 타입 선언 묶음입니다. (scripts/prebuild.ts 가 생성)
+// React, Redux Toolkit, react-redux의 실제 타입이 들어 있어 자동완성과 오류 메시지가 실제 프로젝트와 같습니다.
+import coreTypes from '../generated/types-core.json';
 
 self.MonacoEnvironment = {
   getWorker(_workerId: string, label: string) {
@@ -30,13 +28,18 @@ ts.typescriptDefaults.setCompilerOptions({
 });
 ts.typescriptDefaults.setEagerModelSync(true);
 
-const libs: Array<[path: string, content: string]> = [
-  ['file:///node_modules/@types/react/index.d.ts', reactIndex],
-  ['file:///node_modules/@types/react/global.d.ts', reactGlobal],
-  ['file:///node_modules/@types/react/jsx-runtime.d.ts', reactJsxRuntime],
-  ['file:///node_modules/csstype/index.d.ts', csstype],
-];
-for (const [path, content] of libs) ts.typescriptDefaults.addExtraLib(content, path);
+function addLibs(libs: Record<string, string>): void {
+  for (const [path, content] of Object.entries(libs)) ts.typescriptDefaults.addExtraLib(content, `file:///${path}`);
+}
+addLibs(coreTypes);
+
+let nativeTypes: Promise<void> | null = null;
+
+/** React Native 타입은 용량이 커서, RN 예제가 처음 열릴 때 불러옵니다. */
+export function ensureNativeTypes(): Promise<void> {
+  nativeTypes ??= import('../generated/types-native.json').then((module) => addLibs(module.default));
+  return nativeTypes;
+}
 
 monaco.editor.defineTheme('tsl-light', {
   base: 'vs',

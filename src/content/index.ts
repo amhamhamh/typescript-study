@@ -1,8 +1,17 @@
 import type { Chapter, ChapterId, Lesson } from './types';
-import { basicsLessons } from './lessons/basics';
-import { reactLessons } from './lessons/react';
-import { reduxLessons } from './lessons/redux';
-import { nativeLessons } from './lessons/native';
+import { lesson as inference } from './lessons/inference';
+import { lesson as objects } from './lessons/objects';
+import { lesson as unions } from './lessons/unions';
+import { lesson as generics } from './lessons/generics';
+import { lesson as utility } from './lessons/utility';
+import { lesson as reactProps } from './lessons/react-props';
+import { lesson as reactHooks } from './lessons/react-hooks';
+import { lesson as reactEvents } from './lessons/react-events';
+import { lesson as reduxActions } from './lessons/redux-actions';
+import { lesson as reduxToolkit } from './lessons/redux-toolkit';
+import { lesson as asyncApi } from './lessons/async';
+import { lesson as reactNative } from './lessons/react-native';
+import { lesson as migration } from './lessons/migration';
 
 export const chapters: Chapter[] = [
   {
@@ -31,7 +40,21 @@ export const chapters: Chapter[] = [
   },
 ];
 
-export const lessons: Lesson[] = [...basicsLessons, ...reactLessons, ...reduxLessons, ...nativeLessons];
+export const lessons: Lesson[] = [
+  inference,
+  objects,
+  unions,
+  generics,
+  utility,
+  reactProps,
+  reactHooks,
+  reactEvents,
+  reduxActions,
+  reduxToolkit,
+  asyncApi,
+  reactNative,
+  migration,
+];
 
 export function lessonsOf(chapter: ChapterId): Lesson[] {
   return lessons.filter((lesson) => lesson.chapter === chapter);

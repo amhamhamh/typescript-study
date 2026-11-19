@@ -49,14 +49,10 @@ function Question({ question, index }: { question: QuizQuestion; index: number }
 
 export function Quiz({ questions }: { questions: QuizQuestion[] }) {
   return (
-    <section className="quiz" aria-labelledby="quiz-title">
-      <header className="exercise__head">
-        <span className="eyebrow">확인 퀴즈</span>
-        <h2 id="quiz-title">이해했는지 점검하기</h2>
-      </header>
+    <div className="quiz">
       {questions.map((question, index) => (
         <Question key={question.id} question={question} index={index} />
       ))}
-    </section>
+    </div>
   );
 }

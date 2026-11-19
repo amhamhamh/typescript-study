@@ -1,5 +1,5 @@
 import { chapters, lessons, lessonsOf } from '../content';
-import { href, type Route } from '../lib/router';
+import { href, lessonHref, type Route } from '../lib/router';
 import { selectLessonProgress, useAppSelector } from '../store';
 import { CheckIcon } from './Icons';
 
@@ -35,7 +35,7 @@ export function Sidebar({ route, onNavigate }: SidebarProps) {
                 <li key={lesson.id}>
                   <a
                     className={`side-lesson${lesson.id === currentId ? ' is-current' : ''}`}
-                    href={href({ name: 'lesson', lessonId: lesson.id })}
+                    href={lessonHref(lesson.id)}
                     aria-current={lesson.id === currentId ? 'page' : undefined}
                     onClick={onNavigate}
                   >

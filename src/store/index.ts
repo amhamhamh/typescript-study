@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { useDispatch, useSelector } from 'react-redux';
-import progressReducer, { save } from './progressSlice';
+import progressReducer, { save, type Theme } from './progressSlice';
 import { lessons } from '../content';
 import type { Lesson } from '../content/types';
 
@@ -20,7 +20,15 @@ export const useAppSelector = useSelector.withTypes<RootState>();
 
 // ── 셀렉터 ──────────────────────────────────────────────
 
+/** 저장된 테마가 없으면 시스템 설정을 따릅니다. */
+export function selectTheme(state: RootState): Theme {
+  if (state.progress.theme) return state.progress.theme;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 export interface LessonProgress {
+  missionsDone: number;
+  missionsTotal: number;
   exerciseDone: boolean;
   quizCorrect: number;
   quizTotal: number;
@@ -31,7 +39,17 @@ export function selectLessonProgress(state: RootState, lesson: Lesson): LessonPr
   const exerciseDone = state.progress.exercises[lesson.exercise.id] === true;
   const quizCorrect = lesson.quiz.filter((q) => state.progress.quiz[q.id] === q.answer).length;
   const quizTotal = lesson.quiz.length;
-  return { exerciseDone, quizCorrect, quizTotal, done: exerciseDone && quizCorrect === quizTotal };
+  const withMission = lesson.steps.filter((step) => step.mission);
+  const missionsDone = withMission.filter((step) => state.progress.missions[step.id] === true).length;
+  return {
+    missionsDone,
+    missionsTotal: withMission.length,
+    exerciseDone,
+    quizCorrect,
+    quizTotal,
+    // 레슨 완료 기준은 실습 통과 + 퀴즈 전부 정답입니다. 미션은 과정에서의 연습으로 따로 셉니다.
+    done: exerciseDone && quizCorrect === quizTotal,
+  };
 }
 
 export function selectDoneCount(state: RootState): number {

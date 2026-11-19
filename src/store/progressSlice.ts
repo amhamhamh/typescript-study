@@ -9,6 +9,8 @@ export type Theme = 'light' | 'dark';
 export interface ProgressState {
   /** 통과한 실습 id → true */
   exercises: Record<string, true>;
+  /** 달성한 미션의 단계 id → true */
+  missions: Record<string, true>;
   /** 퀴즈 문항 id → 고른 보기의 인덱스 */
   quiz: Record<string, number>;
   theme: Theme | null;
@@ -17,7 +19,7 @@ export interface ProgressState {
 const STORAGE_KEY = 'ts-for-react-devs/v1';
 
 function load(): ProgressState {
-  const empty: ProgressState = { exercises: {}, quiz: {}, theme: null };
+  const empty: ProgressState = { exercises: {}, missions: {}, quiz: {}, theme: null };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return empty;
@@ -27,6 +29,7 @@ function load(): ProgressState {
     const saved = data as Partial<ProgressState>;
     return {
       exercises: saved.exercises ?? {},
+      missions: saved.missions ?? {},
       quiz: saved.quiz ?? {},
       theme: saved.theme === 'light' || saved.theme === 'dark' ? saved.theme : null,
     };
@@ -50,6 +53,9 @@ const progressSlice = createSlice({
     exercisePassed(state, action: PayloadAction<string>) {
       state.exercises[action.payload] = true;
     },
+    missionCompleted(state, action: PayloadAction<string>) {
+      state.missions[action.payload] = true;
+    },
     quizAnswered(state, action: PayloadAction<{ questionId: string; choice: number }>) {
       state.quiz[action.payload.questionId] = action.payload.choice;
     },
@@ -58,10 +64,11 @@ const progressSlice = createSlice({
     },
     progressReset(state) {
       state.exercises = {};
+      state.missions = {};
       state.quiz = {};
     },
   },
 });
 
-export const { exercisePassed, quizAnswered, themeChanged, progressReset } = progressSlice.actions;
+export const { exercisePassed, missionCompleted, quizAnswered, themeChanged, progressReset } = progressSlice.actions;
 export default progressSlice.reducer;
