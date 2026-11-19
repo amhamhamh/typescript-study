@@ -195,7 +195,9 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
         version += 1;
         const source = model.getValue();
         const compiled = compile(source, jsx);
-        if (compiled.ok) host.run({ code: compiled.code, runner, theme: themeRef.current });
+        // 휴대폰 미리보기는 실제 기기처럼 항상 밝은 화면으로 둡니다. (RN의 기본 글자색이 검정이라서)
+        const previewTheme = runner === 'native' ? 'light' : themeRef.current;
+        if (compiled.ok) host.run({ code: compiled.code, runner, theme: previewTheme });
         else host.fail(compiled.message);
         void check(version);
       };
@@ -283,7 +285,7 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
   const hasPreview = runner !== 'console';
 
   return (
-    <div className={`wb${fill ? ' wb--fill' : ''}${hasPreview ? ' wb--preview' : ''}`}>
+    <div className={`wb${fill ? ' wb--fill' : ''}${hasPreview ? ' wb--preview' : ''}${runner === 'native' ? ' wb--native' : ''}`}>
       <section className="wb__editor" aria-label="코드 에디터">
         <header className="wb__bar">
           <span className="wb__file">{fileName[runner]}</span>
@@ -326,6 +328,7 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
           </div>
         </div>
 
+        <div className="wb__lower">
         <div className="wb__pane wb__pane--console">
           <header className="wb__bar wb__bar--tabs" role="tablist">
             <button role="tab" aria-selected={tab === 'console'} className="wb__tab" onClick={() => setTab('console')}>
@@ -395,6 +398,7 @@ export function Workbench({ id, code, runner, fill = false, apiRef, onReport, on
               ))}
             </ul>
           )}
+        </div>
         </div>
       </section>
     </div>

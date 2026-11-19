@@ -49,7 +49,7 @@
   --bad-soft: #321614;
   --code-bg: #12161d;
   --preview-bg: #11151b;
-  --phone: #05070a;
+  --phone: #3b4453;
   --tok-keyword: #d38ad0;
   --tok-string: #e0a56b;
   --tok-number: #7fd0bb;
@@ -282,8 +282,17 @@ pre code { background: none; padding: 0; font-size: inherit; border-radius: 0; }
 
 .wb__pane { display: flex; flex-direction: column; min-height: 0; }
 .wb__pane--preview { flex: 1.5 1 0; border-bottom: 1px solid var(--line); }
+.wb__lower { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; }
 .wb__pane--console { flex: 1 1 0; }
-.wb__pane--preview:has(.wb__stage--phone) { flex: 2.6 1 0; }
+
+/* 휴대폰 미리보기는 세로로 길어야 하므로 배치를 바꿉니다: 왼쪽 위 에디터, 왼쪽 아래 콘솔·타입 검사, 오른쪽 전체가 휴대폰. */
+.wb--fill.wb--native { grid-template-columns: minmax(0, 1fr) clamp(280px, 26vw, 340px); grid-template-rows: minmax(0, 1fr) minmax(150px, 32%); }
+.wb--fill.wb--native .wb__output { display: contents; }
+.wb--fill.wb--native .wb__editor { grid-column: 1; grid-row: 1; }
+.wb--fill.wb--native .wb__pane--preview { grid-column: 2; grid-row: 1 / span 2; border-bottom: 0; background: var(--surface); }
+.wb--fill.wb--native .wb__lower { grid-column: 1; grid-row: 2; flex-direction: row; border-top: 1px solid var(--line); border-right: 1px solid var(--line); background: var(--surface); }
+.wb--fill.wb--native .wb__types { flex: 1 1 0; max-height: none; border-top: 0; border-left: 1px solid var(--line); min-width: 0; }
+.wb--fill.wb--native .wb__pane--console { min-width: 0; }
 .wb__pane.is-offscreen { position: absolute; width: 1px; height: 1px; overflow: hidden; visibility: hidden; border: 0; }
 
 .wb__stage { position: relative; flex: 1; min-height: 0; background: var(--preview-bg); }
@@ -294,11 +303,12 @@ pre code { background: none; padding: 0; font-size: inherit; border-radius: 0; }
 .wb__stage--phone { display: grid; place-items: center; padding: 12px; background: var(--surface-2); }
 .phone {
   position: relative; width: min(100%, 290px); height: 100%; max-height: 580px;
-  border: 8px solid var(--phone); border-radius: 34px; background: var(--preview-bg); overflow: hidden;
+  border: 8px solid var(--phone); border-radius: 34px; background: #fff; overflow: hidden;
   box-shadow: var(--shadow);
 }
 .phone__notch { position: absolute; z-index: 2; top: 7px; left: 50%; width: 76px; height: 18px; margin-left: -38px; border-radius: 10px; background: var(--phone); }
 .phone .wb__frame-host { inset: 32px 0 0; }
+.phone .sandbox-frame { background: #fff; }
 
 .wb__bar--tabs { gap: 2px; padding-left: 6px; }
 .wb__tab {
@@ -511,13 +521,18 @@ figcaption { font-size: 0.86rem; color: var(--muted); margin-top: 8px; }
   .guide__body { overflow: visible; }
   .guide__nav { position: fixed; z-index: 15; left: 0; right: 0; bottom: 0; }
   .bench { padding: 12px; }
-  .wb, .wb--fill { height: auto; grid-template-columns: minmax(0, 1fr); }
+  .wb, .wb--fill, .wb--fill.wb--native { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .wb--fill.wb--native .wb__editor, .wb--fill.wb--native .wb__pane--preview, .wb--fill.wb--native .wb__lower { grid-column: auto; grid-row: auto; }
+  .wb--fill.wb--native .wb__lower { flex-direction: column; border-right: 0; }
+  .wb--fill.wb--native .wb__types { flex: none; max-height: 220px; border-left: 0; border-top: 1px solid var(--line); }
+  .wb--fill.wb--native .wb__pane--preview { border-bottom: 1px solid var(--line); }
   .wb__editor { border-right: 0; border-bottom: 1px solid var(--line); }
   .wb--fill .wb__monaco { flex: none; height: 340px; }
   .wb .wb__output, .wb:not(.wb--fill) .wb__output { min-height: 0; }
   .wb__pane--preview { flex: none; height: 320px; }
   .wb--preview .wb__stage--phone { padding: 10px; }
   .wb__pane--preview:has(.wb__stage--phone) { height: 520px; }
+  .wb__lower { flex: none; }
   .wb__pane--console { flex: none; height: 200px; }
   .wb__types { max-height: 220px; }
 }

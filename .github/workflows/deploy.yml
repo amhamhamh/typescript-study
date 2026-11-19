@@ -24,7 +24,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run check:lessons
+      # 모든 단계·미션·실습 코드의 타입 검증 (브라우저 실행 검증은 로컬에서: npm run check:lessons)
+      - run: npm run check:lessons -- --types-only
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

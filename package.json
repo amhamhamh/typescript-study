@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "pretypecheck": "tsx scripts/prebuild.ts",
     "typecheck": "tsc --noEmit",
     "prebuild": "tsx scripts/prebuild.ts",
     "predev": "tsx scripts/prebuild.ts",
